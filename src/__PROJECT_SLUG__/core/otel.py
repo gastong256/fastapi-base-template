@@ -24,14 +24,14 @@ def setup_otel(service_name: str, endpoint: str) -> None:
     crashing the application.
     """
     try:
-        from opentelemetry import trace
-        from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
+        from opentelemetry import trace  # type: ignore[import]
+        from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (  # type: ignore[import]
             OTLPSpanExporter,
         )
-        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-        from opentelemetry.sdk.resources import SERVICE_NAME, Resource
-        from opentelemetry.sdk.trace import TracerProvider
-        from opentelemetry.sdk.trace.export import BatchSpanProcessor
+        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor  # type: ignore[import]
+        from opentelemetry.sdk.resources import SERVICE_NAME, Resource  # type: ignore[import]
+        from opentelemetry.sdk.trace import TracerProvider  # type: ignore[import]
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor  # type: ignore[import]
     except ImportError:
         log.warning(
             "otel_packages_not_installed",
@@ -47,7 +47,7 @@ def setup_otel(service_name: str, endpoint: str) -> None:
     FastAPIInstrumentor().instrument()
 
     try:
-        from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+        from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor  # type: ignore[import]
 
         HTTPXClientInstrumentor().instrument()
     except ImportError:
