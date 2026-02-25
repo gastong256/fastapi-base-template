@@ -5,6 +5,7 @@ The in-memory store below is intentionally trivial. To add persistence:
 2. Inject a database session via FastAPI Depends in the router.
 3. Replace _store operations with repository calls.
 """
+
 from __future__ import annotations
 
 import uuid

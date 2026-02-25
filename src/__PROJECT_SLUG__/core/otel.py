@@ -7,6 +7,7 @@ Enable by setting OTEL_ENABLED=true and installing the otel group:
 Then configure the exporter via OTEL_ENDPOINT (default: http://localhost:4317).
 See docs/observability.md for a local Jaeger quickstart.
 """
+
 from __future__ import annotations
 
 import structlog
@@ -41,9 +42,7 @@ def setup_otel(service_name: str, endpoint: str) -> None:
     provider = TracerProvider(
         resource=Resource.create({SERVICE_NAME: service_name}),
     )
-    provider.add_span_processor(
-        BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint))
-    )
+    provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint)))
     trace.set_tracer_provider(provider)
     FastAPIInstrumentor().instrument()
 
