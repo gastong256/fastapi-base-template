@@ -1,0 +1,32 @@
+services:
+  __SERVICE_NAME__:
+    build:
+      context: .
+      target: builder  # Uses the builder stage so source is editable via volume mount
+    command: >
+      uvicorn __PROJECT_SLUG__.main:app
+      --host 0.0.0.0
+      --port 8000
+      --reload
+    volumes:
+      - ./src:/build/src  # Hot-reload: changes in src/ reflect immediately
+    ports:
+      - "${PORT:-8000}:8000"
+    env_file:
+      - .env
+    environment:
+      PYTHONPATH: /build/src
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Redis is provided as an optional dependency. Start it with:
+  #   docker compose --profile with-redis up
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    profiles:
+      - with-redis

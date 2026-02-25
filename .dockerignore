@@ -1,0 +1,32 @@
+.git
+.github
+.venv
+.ruff_cache
+.pytest_cache
+.mypy_cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+
+# Test and coverage artefacts
+.coverage
+htmlcov/
+tests/
+
+# Local config (never in image)
+.env
+.env.*
+!.env.example
+
+# Development tooling
+.pre-commit-config.yaml
+Makefile
+docker-compose*.yml
+*.md
+docs/
+scripts/
+
+# Editor
+.vscode/
+.idea/
