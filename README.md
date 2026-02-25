@@ -2,7 +2,7 @@
 
 > __DESCRIPTION__
 
-[![CI](https://github.com/__OWNER__/fastapi-base-template/actions/workflows/ci.yml/badge.svg)](https://github.com/__OWNER__/fastapi-base-template/actions/workflows/ci.yml)
+[![CI](https://github.com/gastong256/fastapi-base-template/actions/workflows/ci.yml/badge.svg)](https://github.com/gastong256/fastapi-base-template/actions/workflows/ci.yml)
 
 Production-ready FastAPI template. Batteries included: structured logging, request tracing, multitenancy, optional OpenTelemetry, Docker, and a full test suite — all wired and working out of the box.
 
