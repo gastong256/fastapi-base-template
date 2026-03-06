@@ -90,3 +90,8 @@ def test_settings_reject_invalid_runtime_concurrency_values() -> None:
 def test_settings_require_forwarded_allow_ips_non_empty() -> None:
     with pytest.raises(ValidationError):
         Settings(forwarded_allow_ips="   ")
+
+
+def test_settings_require_metrics_path_starting_with_slash() -> None:
+    with pytest.raises(ValidationError):
+        Settings(metrics_path="metrics")

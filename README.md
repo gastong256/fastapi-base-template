@@ -256,6 +256,18 @@ curl -H "X-Request-ID: my-trace-id" http://localhost:8000/api/v1/ping -v
 | Local dev | Colorized console | `APP_DEBUG=true` in `.env` |
 | Production | JSON per line | `APP_DEBUG=false` (default in Docker) |
 
+### Prometheus metrics
+
+Built-in metrics endpoint (enabled by default):
+
+```bash
+APP_METRICS_ENABLED=true
+APP_METRICS_PATH=/metrics
+curl http://localhost:8000/metrics
+```
+
+Includes request count and request latency histograms labeled by method/path/status code.
+
 ### OpenTelemetry (optional)
 
 ```bash
@@ -306,6 +318,7 @@ src/__PROJECT_SLUG__/
 │   ├── db/                      # SQLAlchemy async engine/session + metadata
 │   ├── errors.py                # Consistent JSON error envelope
 │   ├── logging.py               # structlog pipeline
+│   ├── metrics/                 # Prometheus endpoint + HTTP metrics middleware
 │   ├── otel.py                  # Optional OpenTelemetry setup
 │   ├── security/                # JWT auth helpers + principal dependency
 │   └── middleware/

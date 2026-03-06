@@ -9,6 +9,7 @@ from __PROJECT_SLUG__.core.config import get_settings
 from __PROJECT_SLUG__.core.db import db_manager
 from __PROJECT_SLUG__.core.errors import register_exception_handlers
 from __PROJECT_SLUG__.core.logging import configure_logging
+from __PROJECT_SLUG__.core.metrics import MetricsMiddleware, metrics_endpoint
 from __PROJECT_SLUG__.core.middleware.rate_limit import (
     RateLimitMiddleware,
     build_rate_limiter,
@@ -79,6 +80,14 @@ def create_app() -> FastAPI:
 
     register_exception_handlers(app)
 
+    if settings.metrics_enabled:
+        app.add_api_route(
+            settings.metrics_path,
+            metrics_endpoint,
+            methods=["GET"],
+            include_in_schema=False,
+        )
+
     configure_readiness(app)
     register_readiness_check(app, "database", database_readiness_check)
     if settings.rate_limit_enabled and settings.rate_limit_backend == "redis":
@@ -115,6 +124,12 @@ def create_app() -> FastAPI:
             csp=settings.security_csp,
             hsts_enabled=settings.security_hsts_enabled,
             hsts_seconds=settings.security_hsts_seconds,
+        )
+
+    if settings.metrics_enabled:
+        app.add_middleware(
+            MetricsMiddleware,
+            metrics_path=settings.metrics_path,
         )
 
     # Starlette executes middleware in reverse registration order (last added first).

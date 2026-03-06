@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     limit_concurrency: int = 0
     proxy_headers: bool = False
     forwarded_allow_ips: str = "127.0.0.1"
+    metrics_enabled: bool = True
+    metrics_path: str = "/metrics"
     cors_origins: Annotated[list[AnyHttpUrl], NoDecode] = Field(default_factory=list)
     allowed_hosts: Annotated[list[str], NoDecode] = Field(default_factory=lambda: ["*"])
     trust_x_forwarded_for: bool = False
@@ -154,6 +156,8 @@ class Settings(BaseSettings):
             raise ValueError("limit_concurrency must be >= 0")
         if not self.forwarded_allow_ips.strip():
             raise ValueError("forwarded_allow_ips cannot be empty")
+        if not self.metrics_path.startswith("/"):
+            raise ValueError("metrics_path must start with '/'")
         if self.auth_enabled and len(self.auth_jwt_secret) < 32:
             raise ValueError("auth_jwt_secret must be at least 32 characters when auth_enabled=true")
         if self.environment == Environment.PROD and self.auth_admin_password == "change-me":

@@ -69,6 +69,35 @@ curl -H "X-Tenant-ID: acme" -X POST http://localhost:8000/api/v1/items \
 
 ---
 
+## Prometheus Metrics
+
+The template exposes a Prometheus scrape endpoint and HTTP request metrics middleware.
+
+### Settings
+
+```bash
+APP_METRICS_ENABLED=true
+APP_METRICS_PATH=/metrics
+```
+
+### Endpoint
+
+```bash
+curl http://localhost:8000/metrics
+```
+
+### Included HTTP metrics
+
+- `http_server_requests_total{method,path,status_code}`
+- `http_server_request_duration_seconds_bucket{method,path,...}`
+
+Notes:
+
+- The metrics endpoint excludes self-scrape requests from instrumentation to avoid metric feedback loops.
+- Path labels use route templates when available (for example `/api/v1/items`).
+
+---
+
 ## OpenTelemetry (Optional)
 
 ### Install

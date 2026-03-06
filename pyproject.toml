@@ -19,6 +19,7 @@ asyncpg = "^0.30"
 aiosqlite = "^0.21"
 pyjwt = "^2.10"
 redis = "^5.1"
+prometheus-client = "^0.22"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2"
