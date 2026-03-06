@@ -86,3 +86,21 @@ Headers applied by middleware:
 - `Referrer-Policy`
 - `Permissions-Policy`
 - `Strict-Transport-Security` (optional)
+
+## Traffic Protection
+
+Global timeout for slow requests:
+
+```bash
+APP_REQUEST_TIMEOUT_ENABLED=true
+APP_REQUEST_TIMEOUT_SECONDS=30
+APP_REQUEST_TIMEOUT_EXEMPT_PATHS=/health,/ready,/api/docs,/api/redoc,/api/openapi.json
+```
+
+Request body size limit:
+
+```bash
+APP_REQUEST_BODY_LIMIT_ENABLED=true
+APP_REQUEST_BODY_MAX_BYTES=1048576
+APP_REQUEST_BODY_LIMIT_EXEMPT_PATHS=/health,/ready,/api/docs,/api/redoc,/api/openapi.json
+```

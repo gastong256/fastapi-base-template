@@ -95,3 +95,11 @@ def test_settings_require_forwarded_allow_ips_non_empty() -> None:
 def test_settings_require_metrics_path_starting_with_slash() -> None:
     with pytest.raises(ValidationError):
         Settings(metrics_path="metrics")
+
+
+def test_settings_require_positive_timeout_and_body_limit() -> None:
+    with pytest.raises(ValidationError):
+        Settings(request_timeout_seconds=0)
+
+    with pytest.raises(ValidationError):
+        Settings(request_body_max_bytes=0)

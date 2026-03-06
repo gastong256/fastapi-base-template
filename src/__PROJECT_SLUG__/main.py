@@ -10,6 +10,7 @@ from __PROJECT_SLUG__.core.db import db_manager
 from __PROJECT_SLUG__.core.errors import register_exception_handlers
 from __PROJECT_SLUG__.core.logging import configure_logging
 from __PROJECT_SLUG__.core.metrics import MetricsMiddleware, metrics_endpoint
+from __PROJECT_SLUG__.core.middleware.body_size import RequestBodyLimitMiddleware
 from __PROJECT_SLUG__.core.middleware.rate_limit import (
     RateLimitMiddleware,
     build_rate_limiter,
@@ -17,6 +18,7 @@ from __PROJECT_SLUG__.core.middleware.rate_limit import (
 from __PROJECT_SLUG__.core.middleware.request_id import RequestIDMiddleware
 from __PROJECT_SLUG__.core.middleware.security_headers import SecurityHeadersMiddleware
 from __PROJECT_SLUG__.core.middleware.tenant import TenantMiddleware
+from __PROJECT_SLUG__.core.middleware.timeout import RequestTimeoutMiddleware
 from __PROJECT_SLUG__.core.readiness import (
     STARTUP_COMPLETE_STATE_KEY,
     configure_readiness,
@@ -116,6 +118,20 @@ def create_app() -> FastAPI:
             exempt_paths=settings.rate_limit_exempt_paths,
             fail_open=settings.rate_limit_fail_open,
             trust_x_forwarded_for=settings.trust_x_forwarded_for,
+        )
+
+    if settings.request_timeout_enabled:
+        app.add_middleware(
+            RequestTimeoutMiddleware,
+            timeout_seconds=settings.request_timeout_seconds,
+            exempt_paths=settings.request_timeout_exempt_paths,
+        )
+
+    if settings.request_body_limit_enabled:
+        app.add_middleware(
+            RequestBodyLimitMiddleware,
+            max_body_bytes=settings.request_body_max_bytes,
+            exempt_paths=settings.request_body_limit_exempt_paths,
         )
 
     if settings.security_headers_enabled:

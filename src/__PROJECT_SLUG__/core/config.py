@@ -44,6 +44,18 @@ class Settings(BaseSettings):
     allowed_hosts: Annotated[list[str], NoDecode] = Field(default_factory=lambda: ["*"])
     trust_x_forwarded_for: bool = False
 
+    # Resilience / traffic protection
+    request_timeout_enabled: bool = True
+    request_timeout_seconds: int = 30
+    request_timeout_exempt_paths: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["/health", "/ready", "/api/docs", "/api/redoc", "/api/openapi.json"],
+    )
+    request_body_limit_enabled: bool = True
+    request_body_max_bytes: int = 1_048_576
+    request_body_limit_exempt_paths: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["/health", "/ready", "/api/docs", "/api/redoc", "/api/openapi.json"],
+    )
+
     # OpenTelemetry
     otel_enabled: bool = False
     otel_endpoint: str = "http://localhost:4317"
@@ -104,6 +116,8 @@ class Settings(BaseSettings):
         "allowed_hosts",
         "auth_admin_scopes",
         "rate_limit_exempt_paths",
+        "request_timeout_exempt_paths",
+        "request_body_limit_exempt_paths",
         mode="before",
     )
     @classmethod
@@ -158,6 +172,10 @@ class Settings(BaseSettings):
             raise ValueError("forwarded_allow_ips cannot be empty")
         if not self.metrics_path.startswith("/"):
             raise ValueError("metrics_path must start with '/'")
+        if self.request_timeout_seconds < 1:
+            raise ValueError("request_timeout_seconds must be >= 1")
+        if self.request_body_max_bytes < 1:
+            raise ValueError("request_body_max_bytes must be >= 1")
         if self.auth_enabled and len(self.auth_jwt_secret) < 32:
             raise ValueError("auth_jwt_secret must be at least 32 characters when auth_enabled=true")
         if self.environment == Environment.PROD and self.auth_admin_password == "change-me":

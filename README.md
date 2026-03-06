@@ -172,6 +172,10 @@ APP_BACKLOG=2048
 APP_LIMIT_CONCURRENCY=1000   # 0 disables this uvicorn limit
 APP_PROXY_HEADERS=true
 APP_FORWARDED_ALLOW_IPS=10.0.0.0/8,127.0.0.1
+APP_REQUEST_TIMEOUT_ENABLED=true
+APP_REQUEST_TIMEOUT_SECONDS=30
+APP_REQUEST_BODY_LIMIT_ENABLED=true
+APP_REQUEST_BODY_MAX_BYTES=1048576
 ```
 
 Docker image entrypoint uses `scripts/run-production.sh` and applies these settings automatically.
@@ -204,6 +208,8 @@ Security baseline included in the template:
   - in-memory sliding window (single-process)
   - Redis fixed-window (multi-instance / HA)
 - Readiness includes Redis backend check when `APP_RATE_LIMIT_BACKEND=redis`
+- Global request timeout middleware (`504 REQUEST_TIMEOUT`)
+- Request body size limit middleware (`413 REQUEST_BODY_TOO_LARGE`)
 - Security headers middleware (CSP, frame, referrer, permissions, HSTS optional)
 - Trusted host middleware (configured by `APP_ALLOWED_HOSTS`)
 - Optional `X-Forwarded-For` trust for deployments behind L7 proxies (`APP_TRUST_X_FORWARDED_FOR`)
@@ -325,6 +331,8 @@ src/__PROJECT_SLUG__/
 │       ├── rate_limit.py        # Request throttling
 │       ├── request_id.py        # X-Request-ID propagation
 │       ├── security_headers.py  # HTTP response hardening headers
+│       ├── timeout.py           # Global request timeout protection
+│       ├── body_size.py         # Request body size guardrail
 │       └── tenant.py            # X-Tenant-ID → ContextVar
 └── health/
     └── router.py                # /health  /ready
