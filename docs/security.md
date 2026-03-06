@@ -67,6 +67,7 @@ APP_RATE_LIMIT_FAIL_OPEN=true
 - `APP_RATE_LIMIT_FAIL_OPEN=true`: if Redis is temporarily unavailable, requests continue (higher availability).
 - `APP_RATE_LIMIT_FAIL_OPEN=false`: if Redis is unavailable, requests return `503 RATE_LIMIT_UNAVAILABLE` (stricter enforcement).
 - `APP_TRUST_X_FORWARDED_FOR=true`: use first IP from `X-Forwarded-For` (enable only behind trusted proxy/load balancer).
+- When Redis backend is enabled, `/ready` includes a health check for the rate-limiter backend.
 
 ## Security Headers
 

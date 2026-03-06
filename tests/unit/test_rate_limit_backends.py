@@ -16,6 +16,7 @@ class FakeRedisClient:
         self.counters: dict[str, int] = {}
         self.expire_calls: list[tuple[str, int]] = []
         self.closed = False
+        self.ping_called = False
 
     async def incr(self, key: str) -> int:
         self.counters[key] = self.counters.get(key, 0) + 1
@@ -27,6 +28,10 @@ class FakeRedisClient:
 
     async def aclose(self) -> None:
         self.closed = True
+
+    async def ping(self) -> bool:
+        self.ping_called = True
+        return True
 
 
 async def test_sliding_window_check_returns_retry_after() -> None:
@@ -77,6 +82,21 @@ async def test_redis_fixed_window_close_calls_client() -> None:
     assert fake_redis.closed is True
 
 
+async def test_redis_fixed_window_ping_calls_client() -> None:
+    fake_redis = FakeRedisClient()
+    limiter = RedisFixedWindowRateLimiter(
+        max_requests=1,
+        window_seconds=60,
+        redis_url="redis://unused",
+        key_prefix="svc",
+        redis_client=fake_redis,
+    )
+
+    await limiter.ping()
+
+    assert fake_redis.ping_called is True
+
+
 def test_build_rate_limiter_memory_backend() -> None:
     limiter = build_rate_limiter(
         backend="memory",
@@ -87,6 +107,11 @@ def test_build_rate_limiter_memory_backend() -> None:
     )
 
     assert isinstance(limiter, SlidingWindowRateLimiter)
+
+
+async def test_memory_limiter_ping_is_noop() -> None:
+    limiter = SlidingWindowRateLimiter(max_requests=1, window_seconds=10)
+    await limiter.ping()
 
 
 def test_resolve_client_ip_prefers_forwarded_header_when_trusted() -> None:

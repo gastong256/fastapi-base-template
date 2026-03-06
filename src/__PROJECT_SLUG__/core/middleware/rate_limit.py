@@ -27,6 +27,9 @@ class RateLimiter(Protocol):
     async def check(self, key: str) -> RateLimitDecision:
         ...
 
+    async def ping(self) -> None:
+        ...
+
     async def close(self) -> None:
         ...
 
@@ -58,6 +61,9 @@ class SlidingWindowRateLimiter:
         return (await self.check(key=key, now=now)).allowed
 
     async def close(self) -> None:
+        return None
+
+    async def ping(self) -> None:
         return None
 
 
@@ -115,6 +121,9 @@ class RedisFixedWindowRateLimiter:
         close = getattr(self._redis, "aclose", None)
         if callable(close):
             await close()
+
+    async def ping(self) -> None:
+        await self._redis.ping()
 
 
 def build_rate_limiter(

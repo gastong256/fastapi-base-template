@@ -14,6 +14,7 @@ Production-ready FastAPI template. Batteries included: structured logging, reque
 - [Quickstart](#quickstart)
 - [API Documentation](#api-documentation)
 - [Development Workflow](#development-workflow)
+- [Production Runtime](#production-runtime)
 - [Database](#database)
 - [Security](#security)
 - [Observability](#observability)
@@ -133,6 +134,7 @@ make format      # Format with black + ruff --fix
 make lint        # Lint with ruff (no auto-fix)
 make typecheck   # Static type check with pyright
 make test        # Run pytest with coverage report
+make run-prod    # Run production-style server locally
 make lock        # Refresh dependency lockfile
 make migrate     # Apply DB migrations
 make migrate-new MSG="add users table"  # Generate migration
@@ -155,6 +157,24 @@ Hooks on every commit: `trailing-whitespace`, `end-of-file-fixer`, `check-yaml`,
 2. Add `schemas.py` (Pydantic models), `service.py` (business logic), `router.py` (FastAPI routes).
 3. Register the router in `api/v1/router.py`.
 4. Add integration tests in `tests/integration/test_<feature>.py`.
+
+---
+
+## Production Runtime
+
+Production runtime is configurable via environment variables:
+
+```bash
+APP_WEB_CONCURRENCY=2
+APP_KEEPALIVE_TIMEOUT=5
+APP_BACKLOG=2048
+APP_LIMIT_CONCURRENCY=1000   # 0 disables this uvicorn limit
+APP_PROXY_HEADERS=true
+APP_FORWARDED_ALLOW_IPS=10.0.0.0/8,127.0.0.1
+```
+
+Docker image entrypoint uses `scripts/run-production.sh` and applies these settings automatically.
+See [docs/deployment.md](docs/deployment.md) for deployment-oriented defaults.
 
 ---
 
@@ -181,6 +201,7 @@ Security baseline included in the template:
 - Rate limiting middleware with pluggable backend:
   - in-memory sliding window (single-process)
   - Redis fixed-window (multi-instance / HA)
+- Readiness includes Redis backend check when `APP_RATE_LIMIT_BACKEND=redis`
 - Security headers middleware (CSP, frame, referrer, permissions, HSTS optional)
 - Trusted host middleware (configured by `APP_ALLOWED_HOSTS`)
 - Optional `X-Forwarded-For` trust for deployments behind L7 proxies (`APP_TRUST_X_FORWARDED_FOR`)
@@ -273,6 +294,9 @@ src/__PROJECT_SLUG__/
 
 alembic/
 └── versions/                    # Database migration history
+
+scripts/
+└── run-production.sh            # Uvicorn production launcher (workers/timeouts/proxy)
 ```
 
 ---

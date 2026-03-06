@@ -33,6 +33,9 @@ COPY --from=builder /build/.venv ./.venv
 COPY --from=builder /build/src ./src
 COPY --from=builder /build/alembic ./alembic
 COPY --from=builder /build/alembic.ini ./alembic.ini
+COPY scripts/run-production.sh ./scripts/run-production.sh
+
+RUN chmod +x ./scripts/run-production.sh
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
@@ -41,4 +44,4 @@ USER app
 
 EXPOSE 8000
 
-CMD ["uvicorn", "__PROJECT_SLUG__.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["./scripts/run-production.sh"]

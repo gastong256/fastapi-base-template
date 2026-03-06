@@ -32,6 +32,12 @@ class Settings(BaseSettings):
     # Server
     host: str = "0.0.0.0"
     port: int = 8000
+    web_concurrency: int = 1
+    keepalive_timeout: int = 5
+    backlog: int = 2048
+    limit_concurrency: int = 0
+    proxy_headers: bool = False
+    forwarded_allow_ips: str = "127.0.0.1"
     cors_origins: Annotated[list[AnyHttpUrl], NoDecode] = Field(default_factory=list)
     allowed_hosts: Annotated[list[str], NoDecode] = Field(default_factory=lambda: ["*"])
     trust_x_forwarded_for: bool = False
@@ -138,6 +144,16 @@ class Settings(BaseSettings):
             raise ValueError("rate_limit_redis_prefix cannot be empty")
         if self.auth_access_token_expire_minutes < 1:
             raise ValueError("auth_access_token_expire_minutes must be >= 1")
+        if self.web_concurrency < 1:
+            raise ValueError("web_concurrency must be >= 1")
+        if self.keepalive_timeout < 1:
+            raise ValueError("keepalive_timeout must be >= 1")
+        if self.backlog < 1:
+            raise ValueError("backlog must be >= 1")
+        if self.limit_concurrency < 0:
+            raise ValueError("limit_concurrency must be >= 0")
+        if not self.forwarded_allow_ips.strip():
+            raise ValueError("forwarded_allow_ips cannot be empty")
         if self.auth_enabled and len(self.auth_jwt_secret) < 32:
             raise ValueError("auth_jwt_secret must be at least 32 characters when auth_enabled=true")
         if self.environment == Environment.PROD and self.auth_admin_password == "change-me":

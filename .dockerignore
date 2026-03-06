@@ -25,7 +25,8 @@ Makefile
 docker-compose*.yml
 *.md
 docs/
-scripts/
+scripts/*
+!scripts/run-production.sh
 app.db
 
 # Editor

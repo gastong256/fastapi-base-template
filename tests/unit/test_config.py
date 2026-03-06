@@ -71,3 +71,22 @@ def test_settings_reject_invalid_rate_limit_backend() -> None:
 def test_settings_require_redis_url_when_redis_backend() -> None:
     with pytest.raises(ValidationError):
         Settings(rate_limit_backend="redis", rate_limit_redis_url="  ")
+
+
+def test_settings_reject_invalid_runtime_concurrency_values() -> None:
+    with pytest.raises(ValidationError):
+        Settings(web_concurrency=0)
+
+    with pytest.raises(ValidationError):
+        Settings(keepalive_timeout=0)
+
+    with pytest.raises(ValidationError):
+        Settings(backlog=0)
+
+    with pytest.raises(ValidationError):
+        Settings(limit_concurrency=-1)
+
+
+def test_settings_require_forwarded_allow_ips_non_empty() -> None:
+    with pytest.raises(ValidationError):
+        Settings(forwarded_allow_ips="   ")

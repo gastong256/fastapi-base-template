@@ -43,6 +43,10 @@ def create_app() -> FastAPI:
     async def database_readiness_check(_app: FastAPI) -> None:
         await db_manager.ping()
 
+    async def rate_limit_backend_readiness_check(_app: FastAPI) -> None:
+        if limiter is not None:
+            await limiter.ping()
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         setattr(app.state, STARTUP_COMPLETE_STATE_KEY, False)
@@ -77,6 +81,8 @@ def create_app() -> FastAPI:
 
     configure_readiness(app)
     register_readiness_check(app, "database", database_readiness_check)
+    if settings.rate_limit_enabled and settings.rate_limit_backend == "redis":
+        register_readiness_check(app, "rate_limit_backend", rate_limit_backend_readiness_check)
 
     if settings.cors_origins:
         allow_origins = [

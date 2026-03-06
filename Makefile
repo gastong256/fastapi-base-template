@@ -3,7 +3,7 @@
 SLUG ?= __PROJECT_SLUG__
 IMAGE ?= __SERVICE_NAME__
 
-.PHONY: help init install lock format lint typecheck test run migrate migrate-down migrate-new docker-build docker-up docker-down
+.PHONY: help init install lock format lint typecheck test run run-prod migrate migrate-down migrate-new docker-build docker-up docker-down
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) \
@@ -35,6 +35,9 @@ test: ## Run test suite with coverage
 
 run: ## Run development server with hot-reload
 	poetry run uvicorn $(SLUG).main:app --reload --host 0.0.0.0 --port 8000
+
+run-prod: ## Run production server locally (no reload, configurable workers/timeouts)
+	poetry run bash scripts/run-production.sh
 
 migrate: ## Apply database migrations to latest revision
 	poetry run alembic upgrade head
