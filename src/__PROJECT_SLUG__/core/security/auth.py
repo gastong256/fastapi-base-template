@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 import secrets
 from typing import Annotated, Any
+import uuid
 
 import jwt
 from fastapi import Depends, HTTPException, Security, status
@@ -34,13 +35,21 @@ def authenticate_admin_user(username: str, password: str) -> bool:
     )
 
 
-def create_access_token(username: str, scopes: list[str]) -> tuple[str, int]:
+def create_access_token(
+    *,
+    username: str,
+    scopes: list[str],
+    subject: str | None = None,
+) -> tuple[str, int]:
     settings = get_settings()
     expires_delta = timedelta(minutes=settings.auth_access_token_expire_minutes)
     expires_at = datetime.now(UTC) + expires_delta
     payload = {
-        "sub": username,
+        "sub": subject or username,
+        "username": username,
         "scopes": scopes,
+        "typ": "access",
+        "jti": str(uuid.uuid4()),
         "iss": settings.auth_issuer,
         "aud": settings.auth_audience,
         "iat": int(datetime.now(UTC).timestamp()),
@@ -52,21 +61,23 @@ def create_access_token(username: str, scopes: list[str]) -> tuple[str, int]:
 
 def decode_access_token(token: str) -> dict[str, Any]:
     settings = get_settings()
-    try:
-        payload = jwt.decode(
-            token,
-            settings.auth_jwt_secret,
-            algorithms=[settings.auth_jwt_algorithm],
-            audience=settings.auth_audience,
-            issuer=settings.auth_issuer,
-        )
-    except jwt.InvalidTokenError as exc:  # pragma: no cover - exact branches depend on token issue
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication token.",
-            headers={"WWW-Authenticate": "Bearer"},
-        ) from exc
-    return payload
+    secrets_to_try = [settings.auth_jwt_secret, *settings.auth_jwt_additional_secrets]
+    for secret in secrets_to_try:
+        try:
+            return jwt.decode(
+                token,
+                secret,
+                algorithms=[settings.auth_jwt_algorithm],
+                audience=settings.auth_audience,
+                issuer=settings.auth_issuer,
+            )
+        except jwt.InvalidTokenError:
+            continue
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid authentication token.",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 async def get_current_principal(
@@ -89,7 +100,15 @@ async def get_current_principal(
         )
 
     payload = decode_access_token(token)
-    username = str(payload.get("sub", ""))
+    token_type = str(payload.get("typ", ""))
+    if token_type and token_type != "access":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication token type.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    username = str(payload.get("username", payload.get("sub", "")))
     token_scopes = payload.get("scopes", [])
 
     if not isinstance(token_scopes, list) or not all(isinstance(scope, str) for scope in token_scopes):

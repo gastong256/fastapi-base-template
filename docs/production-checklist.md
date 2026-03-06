@@ -7,7 +7,9 @@ Use this checklist before promoting a service created from this template.
 - [ ] `APP_ENVIRONMENT=prod`
 - [ ] `APP_DEBUG=false`
 - [ ] `APP_AUTH_ENABLED=true`
+- [ ] `APP_AUTH_USE_DATABASE=true`
 - [ ] `APP_AUTH_JWT_SECRET` set to a strong secret (>= 32 chars)
+- [ ] `APP_AUTH_JWT_ADDITIONAL_SECRETS` planned for key rotation (optional but recommended)
 - [ ] `APP_AUTH_ADMIN_PASSWORD` changed from default placeholder
 - [ ] `APP_ALLOWED_HOSTS` set to explicit domains (no `*`)
 - [ ] `APP_API_DOCS_ENABLED=false`

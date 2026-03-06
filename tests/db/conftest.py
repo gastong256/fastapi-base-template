@@ -4,6 +4,7 @@ import pytest
 import pytest_asyncio
 from sqlalchemy import delete
 
+from __PROJECT_SLUG__.api.v1.features.auth.models import RefreshToken, User
 from __PROJECT_SLUG__.api.v1.features.items.models import Item
 from __PROJECT_SLUG__.core.config import get_settings
 from __PROJECT_SLUG__.core.db import db_manager
@@ -24,9 +25,13 @@ async def prepare_db() -> None:
 @pytest_asyncio.fixture(autouse=True)
 async def clean_items_table(prepare_db: None) -> None:
     async with db_manager.session_factory() as session:
+        await session.execute(delete(RefreshToken))
+        await session.execute(delete(User))
         await session.execute(delete(Item))
         await session.commit()
     yield
     async with db_manager.session_factory() as session:
+        await session.execute(delete(RefreshToken))
+        await session.execute(delete(User))
         await session.execute(delete(Item))
         await session.commit()

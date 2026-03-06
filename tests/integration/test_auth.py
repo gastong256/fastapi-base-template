@@ -68,3 +68,14 @@ async def test_issue_token_rejects_invalid_grant_type(auth_client: httpx.AsyncCl
 
     assert response.status_code == 400
     assert response.json()["error"]["code"] == "HTTP_400"
+
+
+async def test_issue_token_rejects_malformed_json_payload(auth_client: httpx.AsyncClient) -> None:
+    response = await auth_client.post(
+        "/api/v1/auth/token",
+        content="{not json",
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "HTTP_422"

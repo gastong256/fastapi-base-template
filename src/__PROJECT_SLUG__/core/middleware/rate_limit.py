@@ -4,6 +4,7 @@ import asyncio
 from collections import deque
 from collections.abc import Iterable
 from dataclasses import dataclass
+import hashlib
 import time
 from typing import Protocol
 import uuid
@@ -35,26 +36,51 @@ class RateLimiter(Protocol):
 
 
 class SlidingWindowRateLimiter:
-    def __init__(self, max_requests: int, window_seconds: int) -> None:
+    def __init__(self, max_requests: int, window_seconds: int, max_keys: int = 50000) -> None:
         self.max_requests = max_requests
         self.window_seconds = window_seconds
+        self.max_keys = max_keys
         self._events: dict[str, deque[float]] = {}
+        self._last_seen: dict[str, float] = {}
         self._lock = asyncio.Lock()
+
+    def _prune_stale_keys(self, cutoff: float) -> None:
+        stale_keys = [key for key, queue in self._events.items() if not queue or queue[-1] <= cutoff]
+        for stale_key in stale_keys:
+            self._events.pop(stale_key, None)
+            self._last_seen.pop(stale_key, None)
+
+    def _evict_oldest_key(self) -> None:
+        if not self._last_seen:
+            return
+        oldest_key = min(self._last_seen, key=self._last_seen.get)
+        self._events.pop(oldest_key, None)
+        self._last_seen.pop(oldest_key, None)
 
     async def check(self, key: str, now: float | None = None) -> RateLimitDecision:
         current = now if now is not None else time.monotonic()
         cutoff = current - self.window_seconds
 
         async with self._lock:
-            queue = self._events.setdefault(key, deque())
+            self._prune_stale_keys(cutoff)
+
+            queue = self._events.get(key)
+            if queue is None:
+                if len(self._events) >= self.max_keys:
+                    self._evict_oldest_key()
+                queue = deque()
+                self._events[key] = queue
+
             while queue and queue[0] <= cutoff:
                 queue.popleft()
 
             if len(queue) >= self.max_requests:
                 retry_after = max(1, int((queue[0] + self.window_seconds) - current))
+                self._last_seen[key] = current
                 return RateLimitDecision(allowed=False, retry_after_seconds=retry_after)
 
             queue.append(current)
+            self._last_seen[key] = current
             return RateLimitDecision(allowed=True)
 
     async def allow(self, key: str, now: float | None = None) -> bool:
@@ -131,11 +157,16 @@ def build_rate_limiter(
     backend: str,
     max_requests: int,
     window_seconds: int,
+    memory_max_keys: int,
     redis_url: str,
     redis_prefix: str,
 ) -> RateLimiter:
     if backend == "memory":
-        return SlidingWindowRateLimiter(max_requests=max_requests, window_seconds=window_seconds)
+        return SlidingWindowRateLimiter(
+            max_requests=max_requests,
+            window_seconds=window_seconds,
+            max_keys=memory_max_keys,
+        )
     if backend == "redis":
         return RedisFixedWindowRateLimiter(
             max_requests=max_requests,
@@ -156,6 +187,11 @@ def resolve_client_ip(headers: Headers, scope: Scope, trust_x_forwarded_for: boo
 
     client = scope.get("client")
     return client[0] if client else "unknown"
+
+
+def build_rate_limit_key(*, client_ip: str, tenant_id: str, path: str) -> str:
+    raw_key = f"{client_ip}:{tenant_id}:{path}"
+    return hashlib.sha256(raw_key.encode("utf-8")).hexdigest()
 
 
 class RateLimitMiddleware:
@@ -187,7 +223,7 @@ class RateLimitMiddleware:
         headers = Headers(scope=scope)
         tenant_id = headers.get("X-Tenant-ID", "public")
         client_ip = resolve_client_ip(headers, scope, self.trust_x_forwarded_for)
-        key = f"{client_ip}:{tenant_id}:{path}"
+        key = build_rate_limit_key(client_ip=client_ip, tenant_id=tenant_id, path=path)
 
         try:
             decision = await self.limiter.check(key)

@@ -16,6 +16,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Verify template has been initialized
+        run: |
+          unresolved="$(grep -R -n -E '__PROJECT_NAME__|__PROJECT_SLUG__|__SERVICE_NAME__|__OWNER__|__DESCRIPTION__' \
+            pyproject.toml Dockerfile docker-compose.yml .github/workflows || true)"
+          if [ -n "$unresolved" ]; then
+            echo "Unresolved template placeholders detected. Initialize the template before creating a release:"
+            echo "$unresolved"
+            exit 1
+          fi
+
       - uses: docker/setup-buildx-action@v3
 
       - name: Log in to GitHub Container Registry

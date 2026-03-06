@@ -69,3 +69,4 @@ They cover:
 - Alembic upgrade/downgrade path
 - Repository persistence behavior
 - Concurrent write behavior for `items`
+- Auth persistence flow (`users` + `refresh_tokens`)

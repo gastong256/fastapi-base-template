@@ -10,10 +10,11 @@ Jobs:
   - runs `poetry check --lock`
   - runs lint/format/typecheck
   - runs unit + integration tests with SQLite
+  - runs production launcher smoke test (`scripts/run-production.sh` + `/health`/`/ready`)
 - `db-postgres`
   - starts PostgreSQL service container
   - applies Alembic migrations
-  - runs DB-focused repository/concurrency tests against PostgreSQL
+  - runs DB-focused repository/concurrency/auth tests against PostgreSQL
 - `docker`
   - builds final runtime image target
 

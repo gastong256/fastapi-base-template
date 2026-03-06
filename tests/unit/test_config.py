@@ -25,6 +25,20 @@ def test_settings_require_auth_in_prod() -> None:
         )
 
 
+def test_settings_require_database_backed_auth_in_prod() -> None:
+    with pytest.raises(ValidationError):
+        Settings(
+            environment=Environment.PROD,
+            auth_enabled=True,
+            auth_use_database=False,
+            auth_jwt_secret="x" * 40,
+            auth_admin_password="secure-password",
+            database_auto_create_schema=False,
+            allowed_hosts=["api.example.com"],
+            api_docs_enabled=False,
+        )
+
+
 def test_settings_reject_wildcard_hosts_in_prod() -> None:
     with pytest.raises(ValidationError):
         Settings(
@@ -86,6 +100,11 @@ def test_settings_reject_invalid_rate_limit_backend() -> None:
 def test_settings_require_redis_url_when_redis_backend() -> None:
     with pytest.raises(ValidationError):
         Settings(rate_limit_backend="redis", rate_limit_redis_url="  ")
+
+
+def test_settings_reject_non_positive_rate_limit_memory_max_keys() -> None:
+    with pytest.raises(ValidationError):
+        Settings(rate_limit_memory_max_keys=0)
 
 
 def test_settings_reject_invalid_runtime_concurrency_values() -> None:

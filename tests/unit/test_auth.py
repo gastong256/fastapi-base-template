@@ -41,11 +41,31 @@ def test_authenticate_admin_user(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_create_and_decode_access_token(monkeypatch: pytest.MonkeyPatch) -> None:
     _set_auth_env(monkeypatch)
     try:
-        token, expires_in = create_access_token("admin", ["items:write"])
+        token, expires_in = create_access_token(username="admin", scopes=["items:write"])
         payload = decode_access_token(token)
         assert expires_in > 0
         assert payload["sub"] == "admin"
+        assert payload["typ"] == "access"
         assert payload["scopes"] == ["items:write"]
+    finally:
+        _clear_auth_cache()
+
+
+def test_decode_access_token_accepts_additional_secret(monkeypatch: pytest.MonkeyPatch) -> None:
+    _set_auth_env(monkeypatch, enabled=True)
+    try:
+        # Issue token with first key
+        monkeypatch.setenv("APP_AUTH_JWT_SECRET", "y" * 48)
+        monkeypatch.setenv("APP_AUTH_JWT_ADDITIONAL_SECRETS", "")
+        get_settings.cache_clear()
+        token, _ = create_access_token(username="admin", scopes=["items:read"])
+
+        # Decode with rotated primary key + old key in additional set
+        monkeypatch.setenv("APP_AUTH_JWT_SECRET", "z" * 48)
+        monkeypatch.setenv("APP_AUTH_JWT_ADDITIONAL_SECRETS", "y" * 48)
+        get_settings.cache_clear()
+        payload = decode_access_token(token)
+        assert payload["username"] == "admin"
     finally:
         _clear_auth_cache()
 
@@ -67,7 +87,7 @@ async def test_get_current_principal_rejects_missing_scope(
 ) -> None:
     _set_auth_env(monkeypatch, enabled=True)
     try:
-        token, _ = create_access_token("admin", ["items:read"])
+        token, _ = create_access_token(username="admin", scopes=["items:read"])
         with pytest.raises(HTTPException) as exc:
             await get_current_principal(SecurityScopes(scopes=["items:write"]), token=token)
         assert exc.value.status_code == 403

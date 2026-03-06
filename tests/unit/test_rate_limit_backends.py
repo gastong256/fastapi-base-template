@@ -6,6 +6,7 @@ from starlette.datastructures import Headers
 from __PROJECT_SLUG__.core.middleware.rate_limit import (
     RedisFixedWindowRateLimiter,
     SlidingWindowRateLimiter,
+    build_rate_limit_key,
     build_rate_limiter,
     resolve_client_ip,
 )
@@ -102,6 +103,7 @@ def test_build_rate_limiter_memory_backend() -> None:
         backend="memory",
         max_requests=10,
         window_seconds=60,
+        memory_max_keys=1000,
         redis_url="redis://localhost:6379/0",
         redis_prefix="svc",
     )
@@ -112,6 +114,24 @@ def test_build_rate_limiter_memory_backend() -> None:
 async def test_memory_limiter_ping_is_noop() -> None:
     limiter = SlidingWindowRateLimiter(max_requests=1, window_seconds=10)
     await limiter.ping()
+
+
+async def test_sliding_window_evicts_oldest_when_max_keys_reached() -> None:
+    limiter = SlidingWindowRateLimiter(max_requests=1, window_seconds=10, max_keys=2)
+
+    assert (await limiter.check("k1", now=0.0)).allowed is True
+    assert (await limiter.check("k2", now=1.0)).allowed is True
+    assert (await limiter.check("k3", now=2.0)).allowed is True
+    assert (await limiter.check("k1", now=3.0)).allowed is True
+
+
+def test_build_rate_limit_key_hashes_components() -> None:
+    first = build_rate_limit_key(client_ip="10.0.0.1", tenant_id="acme", path="/api/v1/items")
+    second = build_rate_limit_key(client_ip="10.0.0.1", tenant_id="acme", path="/api/v1/items")
+    third = build_rate_limit_key(client_ip="10.0.0.1", tenant_id="acme", path="/api/v1/other")
+
+    assert first == second
+    assert first != third
 
 
 def test_resolve_client_ip_prefers_forwarded_header_when_trusted() -> None:

@@ -81,8 +81,13 @@ class Settings(BaseSettings):
     # Authentication / Authorization
     auth_enabled: bool = False
     auth_jwt_secret: str = "change-me-please-use-a-long-random-secret"
+    auth_jwt_additional_secrets: Annotated[list[str], NoDecode] = Field(default_factory=list)
     auth_jwt_algorithm: str = "HS256"
     auth_access_token_expire_minutes: int = 30
+    auth_refresh_token_enabled: bool = True
+    auth_refresh_token_expire_minutes: int = 60 * 24 * 7
+    auth_use_database: bool = False
+    auth_seed_admin_on_startup: bool = False
     auth_issuer: str = "__SERVICE_NAME__"
     auth_audience: str = "__SERVICE_NAME__-clients"
     auth_admin_username: str = "admin"
@@ -96,11 +101,12 @@ class Settings(BaseSettings):
     rate_limit_backend: str = "memory"
     rate_limit_requests: int = 120
     rate_limit_window_seconds: int = 60
+    rate_limit_memory_max_keys: int = 50000
     rate_limit_fail_open: bool = True
     rate_limit_redis_url: str = "redis://localhost:6379/0"
     rate_limit_redis_prefix: str = "__SERVICE_NAME__"
     rate_limit_exempt_paths: Annotated[list[str], NoDecode] = Field(
-        default_factory=lambda: ["/health", "/ready", "/api/docs", "/api/redoc", "/api/openapi.json"],
+        default_factory=lambda: ["/health", "/ready", "/metrics", "/api/docs", "/api/redoc", "/api/openapi.json"],
     )
 
     # Security headers
@@ -122,6 +128,7 @@ class Settings(BaseSettings):
         "cors_origins",
         "allowed_hosts",
         "auth_admin_scopes",
+        "auth_jwt_additional_secrets",
         "rate_limit_exempt_paths",
         "request_timeout_exempt_paths",
         "request_body_limit_exempt_paths",
@@ -146,6 +153,8 @@ class Settings(BaseSettings):
             raise ValueError("allowed_hosts cannot be '*' when environment=prod")
         if self.environment == Environment.PROD and not self.auth_enabled:
             raise ValueError("auth_enabled must be true when environment=prod")
+        if self.environment == Environment.PROD and not self.auth_use_database:
+            raise ValueError("auth_use_database must be true when environment=prod")
         if self.environment == Environment.PROD and self.api_docs_enabled:
             raise ValueError("api_docs_enabled must be false when environment=prod")
 
@@ -169,6 +178,8 @@ class Settings(BaseSettings):
             raise ValueError("rate_limit_requests must be >= 1")
         if self.rate_limit_window_seconds < 1:
             raise ValueError("rate_limit_window_seconds must be >= 1")
+        if self.rate_limit_memory_max_keys < 1:
+            raise ValueError("rate_limit_memory_max_keys must be >= 1")
         if self.rate_limit_backend not in {"memory", "redis"}:
             raise ValueError("rate_limit_backend must be one of: memory, redis")
         if self.rate_limit_backend == "redis" and not self.rate_limit_redis_url.strip():
@@ -177,6 +188,8 @@ class Settings(BaseSettings):
             raise ValueError("rate_limit_redis_prefix cannot be empty")
         if self.auth_access_token_expire_minutes < 1:
             raise ValueError("auth_access_token_expire_minutes must be >= 1")
+        if self.auth_refresh_token_expire_minutes < 1:
+            raise ValueError("auth_refresh_token_expire_minutes must be >= 1")
         if self.web_concurrency < 1:
             raise ValueError("web_concurrency must be >= 1")
         if self.keepalive_timeout < 1:

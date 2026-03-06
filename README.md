@@ -122,6 +122,8 @@ Auth endpoint:
 | URL | Description |
 |---|---|
 | `http://localhost:8000/api/v1/auth/token` | OAuth2 password flow token endpoint |
+| `http://localhost:8000/api/v1/auth/refresh` | Refresh token rotation endpoint |
+| `http://localhost:8000/api/v1/auth/revoke` | Refresh token revocation endpoint |
 
 Readiness is extensible via `core.readiness.register_readiness_check(...)`, so new
 dependencies (database, cache, broker) can be wired without changing the endpoint contract.
@@ -210,11 +212,12 @@ CI/CD details: [docs/ci-cd.md](docs/ci-cd.md).
 
 Security baseline included in the template:
 
-- JWT auth scaffolding with OAuth2 password flow (`/api/v1/auth/token`)
+- JWT auth scaffolding with OAuth2 password + refresh/revoke flow
 - Scope-based authorization dependency (`items:write` on item creation)
 - Rate limiting middleware with pluggable backend:
   - in-memory sliding window (single-process)
   - Redis fixed-window (multi-instance / HA)
+  - bounded in-memory key cardinality (`APP_RATE_LIMIT_MEMORY_MAX_KEYS`)
 - Readiness includes Redis backend check when `APP_RATE_LIMIT_BACKEND=redis`
 - Global request timeout middleware (`504 REQUEST_TIMEOUT`)
 - Request body size limit middleware (`413 REQUEST_BODY_TOO_LARGE`)

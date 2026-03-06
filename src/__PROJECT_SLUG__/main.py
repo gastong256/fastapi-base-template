@@ -6,6 +6,7 @@ from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from __PROJECT_SLUG__.api.v1.router import v1_router
+from __PROJECT_SLUG__.api.v1.features.auth.service import seed_admin_user_if_enabled
 from __PROJECT_SLUG__.core.config import get_settings
 from __PROJECT_SLUG__.core.db import db_manager
 from __PROJECT_SLUG__.core.errors import register_exception_handlers
@@ -32,11 +33,20 @@ def create_app() -> FastAPI:
     settings = get_settings()
     configure_logging(debug=settings.debug, level=settings.log_level)
     db_manager.configure(settings)
+    rate_limit_exempt_paths = set(settings.rate_limit_exempt_paths)
+    request_timeout_exempt_paths = set(settings.request_timeout_exempt_paths)
+    request_body_limit_exempt_paths = set(settings.request_body_limit_exempt_paths)
+    if settings.metrics_enabled:
+        rate_limit_exempt_paths.add(settings.metrics_path)
+        request_timeout_exempt_paths.add(settings.metrics_path)
+        request_body_limit_exempt_paths.add(settings.metrics_path)
+
     limiter = (
         build_rate_limiter(
             backend=settings.rate_limit_backend,
             max_requests=settings.rate_limit_requests,
             window_seconds=settings.rate_limit_window_seconds,
+            memory_max_keys=settings.rate_limit_memory_max_keys,
             redis_url=settings.rate_limit_redis_url,
             redis_prefix=settings.rate_limit_redis_prefix,
         )
@@ -58,6 +68,14 @@ def create_app() -> FastAPI:
             await db_manager.create_schema()
         if settings.database_connect_on_startup:
             await db_manager.ping()
+        if settings.auth_use_database:
+            await seed_admin_user_if_enabled(
+                enabled=settings.auth_seed_admin_on_startup,
+                session_factory=db_manager.session_factory,
+                username=settings.auth_admin_username,
+                password=settings.auth_admin_password,
+                scopes=settings.auth_admin_scopes,
+            )
         if settings.otel_enabled:
             from __PROJECT_SLUG__.core.otel import setup_otel
 
@@ -123,7 +141,7 @@ def create_app() -> FastAPI:
         app.add_middleware(
             RateLimitMiddleware,
             limiter=limiter,
-            exempt_paths=settings.rate_limit_exempt_paths,
+            exempt_paths=rate_limit_exempt_paths,
             fail_open=settings.rate_limit_fail_open,
             trust_x_forwarded_for=settings.trust_x_forwarded_for,
         )
@@ -132,14 +150,14 @@ def create_app() -> FastAPI:
         app.add_middleware(
             RequestTimeoutMiddleware,
             timeout_seconds=settings.request_timeout_seconds,
-            exempt_paths=settings.request_timeout_exempt_paths,
+            exempt_paths=request_timeout_exempt_paths,
         )
 
     if settings.request_body_limit_enabled:
         app.add_middleware(
             RequestBodyLimitMiddleware,
             max_body_bytes=settings.request_body_max_bytes,
-            exempt_paths=settings.request_body_limit_exempt_paths,
+            exempt_paths=request_body_limit_exempt_paths,
         )
 
     if settings.security_headers_enabled:
