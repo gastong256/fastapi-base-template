@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     environment: Environment = Environment.LOCAL
     debug: bool = False
     log_level: str = "INFO"
+    api_docs_enabled: bool = True
+    api_docs_url: str = "/api/docs"
+    api_redoc_url: str = "/api/redoc"
+    api_openapi_url: str = "/api/openapi.json"
 
     # Server
     host: str = "0.0.0.0"
@@ -40,6 +44,9 @@ class Settings(BaseSettings):
     forwarded_allow_ips: str = "127.0.0.1"
     metrics_enabled: bool = True
     metrics_path: str = "/metrics"
+    gzip_enabled: bool = True
+    gzip_minimum_size: int = 500
+    gzip_compress_level: int = 6
     cors_origins: Annotated[list[AnyHttpUrl], NoDecode] = Field(default_factory=list)
     allowed_hosts: Annotated[list[str], NoDecode] = Field(default_factory=lambda: ["*"])
     trust_x_forwarded_for: bool = False
@@ -140,6 +147,14 @@ class Settings(BaseSettings):
         if self.environment == Environment.PROD and not self.auth_enabled:
             raise ValueError("auth_enabled must be true when environment=prod")
 
+        if self.api_docs_enabled:
+            if not self.api_docs_url.startswith("/"):
+                raise ValueError("api_docs_url must start with '/'")
+            if not self.api_redoc_url.startswith("/"):
+                raise ValueError("api_redoc_url must start with '/'")
+            if not self.api_openapi_url.startswith("/"):
+                raise ValueError("api_openapi_url must start with '/'")
+
         if self.database_pool_size < 1:
             raise ValueError("database_pool_size must be >= 1")
         if self.database_max_overflow < 0:
@@ -172,6 +187,10 @@ class Settings(BaseSettings):
             raise ValueError("forwarded_allow_ips cannot be empty")
         if not self.metrics_path.startswith("/"):
             raise ValueError("metrics_path must start with '/'")
+        if self.gzip_minimum_size < 1:
+            raise ValueError("gzip_minimum_size must be >= 1")
+        if self.gzip_compress_level < 1 or self.gzip_compress_level > 9:
+            raise ValueError("gzip_compress_level must be between 1 and 9")
         if self.request_timeout_seconds < 1:
             raise ValueError("request_timeout_seconds must be >= 1")
         if self.request_body_max_bytes < 1:

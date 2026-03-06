@@ -103,3 +103,25 @@ def test_settings_require_positive_timeout_and_body_limit() -> None:
 
     with pytest.raises(ValidationError):
         Settings(request_body_max_bytes=0)
+
+
+def test_settings_require_valid_docs_paths_when_docs_enabled() -> None:
+    with pytest.raises(ValidationError):
+        Settings(api_docs_enabled=True, api_docs_url="docs")
+
+    with pytest.raises(ValidationError):
+        Settings(api_docs_enabled=True, api_redoc_url="redoc")
+
+    with pytest.raises(ValidationError):
+        Settings(api_docs_enabled=True, api_openapi_url="openapi.json")
+
+
+def test_settings_require_valid_gzip_values() -> None:
+    with pytest.raises(ValidationError):
+        Settings(gzip_minimum_size=0)
+
+    with pytest.raises(ValidationError):
+        Settings(gzip_compress_level=0)
+
+    with pytest.raises(ValidationError):
+        Settings(gzip_compress_level=10)

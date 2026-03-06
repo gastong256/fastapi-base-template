@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
+from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from __PROJECT_SLUG__.api.v1.router import v1_router
@@ -74,9 +75,9 @@ def create_app() -> FastAPI:
         title=settings.app_name,
         version=settings.version,
         description=settings.description,
-        docs_url="/api/docs",
-        redoc_url="/api/redoc",
-        openapi_url="/api/openapi.json",
+        docs_url=settings.api_docs_url if settings.api_docs_enabled else None,
+        redoc_url=settings.api_redoc_url if settings.api_docs_enabled else None,
+        openapi_url=settings.api_openapi_url if settings.api_docs_enabled else None,
         lifespan=lifespan,
     )
 
@@ -110,6 +111,13 @@ def create_app() -> FastAPI:
 
     if settings.allowed_hosts and settings.allowed_hosts != ["*"]:
         app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
+
+    if settings.gzip_enabled:
+        app.add_middleware(
+            GZipMiddleware,
+            minimum_size=settings.gzip_minimum_size,
+            compresslevel=settings.gzip_compress_level,
+        )
 
     if settings.rate_limit_enabled:
         app.add_middleware(

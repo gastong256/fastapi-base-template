@@ -107,6 +107,8 @@ All documentation endpoints are served under `/api/` (not versioned):
 | `http://localhost:8000/api/redoc` | ReDoc |
 | `http://localhost:8000/api/openapi.json` | OpenAPI JSON schema |
 
+These endpoints can be disabled in hardened deployments with `APP_API_DOCS_ENABLED=false`.
+
 Health probes (stable, version-independent):
 
 | URL | Description |
@@ -172,6 +174,10 @@ APP_BACKLOG=2048
 APP_LIMIT_CONCURRENCY=1000   # 0 disables this uvicorn limit
 APP_PROXY_HEADERS=true
 APP_FORWARDED_ALLOW_IPS=10.0.0.0/8,127.0.0.1
+APP_API_DOCS_ENABLED=false
+APP_GZIP_ENABLED=true
+APP_GZIP_MINIMUM_SIZE=500
+APP_GZIP_COMPRESS_LEVEL=6
 APP_REQUEST_TIMEOUT_ENABLED=true
 APP_REQUEST_TIMEOUT_SECONDS=30
 APP_REQUEST_BODY_LIMIT_ENABLED=true
