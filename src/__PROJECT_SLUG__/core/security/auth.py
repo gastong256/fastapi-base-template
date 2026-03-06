@@ -118,7 +118,7 @@ async def get_current_principal(
 
 def require_scopes(scopes: list[str]):
     async def dependency(
-        principal: Annotated[AuthPrincipal, Security(get_current_principal, scopes=scopes)],
+        principal: AuthPrincipal = Security(get_current_principal, scopes=scopes),
     ) -> AuthPrincipal:
         return principal
 

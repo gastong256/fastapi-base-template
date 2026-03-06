@@ -1,27 +1,43 @@
 from __future__ import annotations
 
+import httpx
 import pytest
-from starlette.testclient import TestClient
+import pytest_asyncio
 
 from __PROJECT_SLUG__.core.config import get_settings
+from __PROJECT_SLUG__.core.db import get_db_session
+from __PROJECT_SLUG__.core.readiness import register_readiness_check
 from __PROJECT_SLUG__.main import create_app
 
 
-@pytest.fixture
-def auth_client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
+@pytest_asyncio.fixture
+async def auth_client(monkeypatch: pytest.MonkeyPatch) -> httpx.AsyncClient:
     monkeypatch.setenv("APP_AUTH_ENABLED", "true")
     monkeypatch.setenv("APP_AUTH_JWT_SECRET", "x" * 40)
     monkeypatch.setenv("APP_AUTH_ADMIN_PASSWORD", "super-secret-password")
     get_settings.cache_clear()
 
-    with TestClient(create_app()) as client:
-        yield client
+    app = create_app()
+
+    async def _no_db_session():
+        yield None
+
+    async def _database_readiness_noop(_app: object) -> None:
+        return None
+
+    app.dependency_overrides[get_db_session] = _no_db_session
+    register_readiness_check(app, "database", _database_readiness_noop)
+
+    transport = httpx.ASGITransport(app=app)
+    async with app.router.lifespan_context(app):
+        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+            yield client
 
     get_settings.cache_clear()
 
 
-def test_issue_token_with_form_payload(auth_client: TestClient) -> None:
-    response = auth_client.post(
+async def test_issue_token_with_form_payload(auth_client: httpx.AsyncClient) -> None:
+    response = await auth_client.post(
         "/api/v1/auth/token",
         data={
             "username": "admin",
@@ -39,8 +55,8 @@ def test_issue_token_with_form_payload(auth_client: TestClient) -> None:
     assert body["expires_in"] > 0
 
 
-def test_issue_token_rejects_invalid_grant_type(auth_client: TestClient) -> None:
-    response = auth_client.post(
+async def test_issue_token_rejects_invalid_grant_type(auth_client: httpx.AsyncClient) -> None:
+    response = await auth_client.post(
         "/api/v1/auth/token",
         data={
             "username": "admin",

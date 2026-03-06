@@ -20,6 +20,11 @@ def get_tenant_id() -> str:
     return _tenant_id.get()
 
 
+async def get_tenant_id_dependency() -> str:
+    """Async dependency wrapper to avoid threadpool execution for sync callables."""
+    return get_tenant_id()
+
+
 class TenantMiddleware:
     """Resolve X-Tenant-ID request header and store it in contextvars.
 

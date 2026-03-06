@@ -2,12 +2,14 @@ import os
 from collections.abc import Generator
 from pathlib import Path
 
+import httpx
 import pytest
-from starlette.testclient import TestClient
+import pytest_asyncio
 
 from __PROJECT_SLUG__.api.v1.features.items import service as items_service
 from __PROJECT_SLUG__.core.config import get_settings
 from __PROJECT_SLUG__.core.db import get_db_session
+from __PROJECT_SLUG__.core.readiness import register_readiness_check
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -49,9 +51,9 @@ def reset_item_store() -> None:
     items_service.clear_store()
 
 
-@pytest.fixture
-def client() -> TestClient:
-    """Function-scoped TestClient for deterministic test isolation."""
+@pytest_asyncio.fixture
+async def client() -> httpx.AsyncClient:
+    """Function-scoped AsyncClient for deterministic test isolation."""
     from __PROJECT_SLUG__.main import create_app
 
     app = create_app()
@@ -61,7 +63,13 @@ def client() -> TestClient:
         # DB behavior is covered in tests/db with a real PostgreSQL backend.
         yield None
 
-    app.dependency_overrides[get_db_session] = _no_db_session
+    async def _database_readiness_noop(_app: object) -> None:
+        return None
 
-    with TestClient(app) as c:
-        yield c
+    app.dependency_overrides[get_db_session] = _no_db_session
+    register_readiness_check(app, "database", _database_readiness_noop)
+
+    transport = httpx.ASGITransport(app=app)
+    async with app.router.lifespan_context(app):
+        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as c:
+            yield c
