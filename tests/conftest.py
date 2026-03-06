@@ -7,6 +7,8 @@ from starlette.testclient import TestClient
 
 from __PROJECT_SLUG__.api.v1.features.items import service as items_service
 from __PROJECT_SLUG__.core.config import get_settings
+from __PROJECT_SLUG__.core.db import get_db_session
+
 
 @pytest.fixture(scope="session", autouse=True)
 def configure_test_environment(tmp_path_factory: pytest.TempPathFactory) -> Generator[None, None, None]:
@@ -19,12 +21,14 @@ def configure_test_environment(tmp_path_factory: pytest.TempPathFactory) -> Gene
         "APP_DATABASE_URL": os.environ.get("APP_DATABASE_URL"),
         "APP_DATABASE_AUTO_CREATE_SCHEMA": os.environ.get("APP_DATABASE_AUTO_CREATE_SCHEMA"),
         "APP_DATABASE_CONNECT_ON_STARTUP": os.environ.get("APP_DATABASE_CONNECT_ON_STARTUP"),
+        "APP_AUTH_ENABLED": os.environ.get("APP_AUTH_ENABLED"),
     }
 
     os.environ["APP_ENVIRONMENT"] = "test"
     os.environ["APP_DATABASE_URL"] = test_database_url
-    os.environ["APP_DATABASE_AUTO_CREATE_SCHEMA"] = "true"
+    os.environ["APP_DATABASE_AUTO_CREATE_SCHEMA"] = "false"
     os.environ["APP_DATABASE_CONNECT_ON_STARTUP"] = "false"
+    os.environ["APP_AUTH_ENABLED"] = "false"
     get_settings.cache_clear()
 
     yield
@@ -50,5 +54,14 @@ def client() -> TestClient:
     """Function-scoped TestClient for deterministic test isolation."""
     from __PROJECT_SLUG__.main import create_app
 
-    with TestClient(create_app()) as c:
+    app = create_app()
+
+    async def _no_db_session():
+        # Integration tests in this suite validate HTTP contracts and middleware behavior.
+        # DB behavior is covered in tests/db with a real PostgreSQL backend.
+        yield None
+
+    app.dependency_overrides[get_db_session] = _no_db_session
+
+    with TestClient(app) as c:
         yield c

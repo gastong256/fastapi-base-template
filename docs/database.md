@@ -57,8 +57,12 @@ APP_DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/app make 
 Database-focused tests live in `tests/db/`:
 
 ```bash
-PYTHONPATH=src pytest tests/db
+APP_DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/app \
+  PYTHONPATH=src pytest tests/db
 ```
+
+`tests/db` intentionally target the production persistence path and require PostgreSQL.
+If `APP_DATABASE_URL` is not a PostgreSQL async URL, the suite is skipped.
 
 They cover:
 
