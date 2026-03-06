@@ -36,6 +36,7 @@ curl -X POST http://localhost:8000/api/v1/items \
 ```
 
 When `APP_AUTH_ENABLED=false`, scope dependencies are bypassed for local development.
+In production mode (`APP_ENVIRONMENT=prod`), the template requires `APP_API_DOCS_ENABLED=false`.
 
 ## Rate Limiting
 

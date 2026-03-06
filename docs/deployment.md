@@ -37,6 +37,7 @@ Notes:
 - `APP_LIMIT_CONCURRENCY=0` disables uvicorn limit.
 - Set `APP_PROXY_HEADERS=true` only when traffic always comes through trusted reverse proxies/load balancers.
 - Keep `APP_FORWARDED_ALLOW_IPS` restricted to proxy/LB address ranges when possible.
+- In production mode (`APP_ENVIRONMENT=prod`), set `APP_API_DOCS_ENABLED=false`.
 
 ## Local production-like run
 

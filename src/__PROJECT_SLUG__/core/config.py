@@ -146,6 +146,8 @@ class Settings(BaseSettings):
             raise ValueError("allowed_hosts cannot be '*' when environment=prod")
         if self.environment == Environment.PROD and not self.auth_enabled:
             raise ValueError("auth_enabled must be true when environment=prod")
+        if self.environment == Environment.PROD and self.api_docs_enabled:
+            raise ValueError("api_docs_enabled must be false when environment=prod")
 
         if self.api_docs_enabled:
             if not self.api_docs_url.startswith("/"):

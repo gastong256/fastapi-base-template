@@ -3,7 +3,7 @@
 SLUG ?= __PROJECT_SLUG__
 IMAGE ?= __SERVICE_NAME__
 
-.PHONY: help init install lock format lint typecheck test run run-prod migrate migrate-down migrate-new docker-build docker-up docker-down
+.PHONY: help init install lock format lint typecheck test test-unit test-integration verify run run-prod migrate migrate-down migrate-new docker-build docker-up docker-down
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) \
@@ -32,6 +32,18 @@ typecheck: ## Static type check with pyright
 
 test: ## Run test suite with coverage
 	poetry run pytest --cov=src --cov-report=term-missing
+
+test-unit: ## Run only unit tests
+	poetry run pytest tests/unit
+
+test-integration: ## Run only integration tests
+	poetry run pytest tests/integration
+
+verify: ## Pre-flight verification: lint + typecheck + unit + integration
+	$(MAKE) lint
+	$(MAKE) typecheck
+	$(MAKE) test-unit
+	$(MAKE) test-integration
 
 run: ## Run development server with hot-reload
 	poetry run uvicorn $(SLUG).main:app --reload --host 0.0.0.0 --port 8000

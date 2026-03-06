@@ -21,6 +21,7 @@ def test_settings_require_auth_in_prod() -> None:
             auth_enabled=False,
             database_auto_create_schema=False,
             allowed_hosts=["api.example.com"],
+            api_docs_enabled=False,
         )
 
 
@@ -33,6 +34,20 @@ def test_settings_reject_wildcard_hosts_in_prod() -> None:
             auth_admin_password="secure-password",
             database_auto_create_schema=False,
             allowed_hosts=["*"],
+            api_docs_enabled=False,
+        )
+
+
+def test_settings_require_docs_disabled_in_prod() -> None:
+    with pytest.raises(ValidationError):
+        Settings(
+            environment=Environment.PROD,
+            auth_enabled=True,
+            auth_jwt_secret="x" * 40,
+            auth_admin_password="secure-password",
+            database_auto_create_schema=False,
+            allowed_hosts=["api.example.com"],
+            api_docs_enabled=True,
         )
 
 

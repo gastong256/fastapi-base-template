@@ -19,6 +19,7 @@ Production-ready FastAPI template. Batteries included: structured logging, reque
 - [Security](#security)
 - [CI/CD](#cicd)
 - [Observability](#observability)
+- [Production Checklist](#production-checklist)
 - [Multi-Tenancy](#multi-tenancy)
 - [Repository Structure](#repository-structure)
 - [Releasing](#releasing)
@@ -186,6 +187,7 @@ APP_REQUEST_BODY_MAX_BYTES=1048576
 
 Docker image entrypoint uses `scripts/run-production.sh` and applies these settings automatically.
 See [docs/deployment.md](docs/deployment.md) for deployment-oriented defaults.
+For go-live validation, use [docs/production-checklist.md](docs/production-checklist.md).
 
 ---
 
@@ -221,6 +223,7 @@ Security baseline included in the template:
 - Optional `X-Forwarded-For` trust for deployments behind L7 proxies (`APP_TRUST_X_FORWARDED_FOR`)
 
 See [docs/security.md](docs/security.md) for settings and usage examples.
+In production (`APP_ENVIRONMENT=prod`), this template requires `APP_API_DOCS_ENABLED=false`.
 
 ---
 
@@ -292,6 +295,12 @@ APP_OTEL_SERVICE_NAME=__SERVICE_NAME__
 ```
 
 See [docs/observability.md](docs/observability.md) for a local Jaeger quickstart and full instrumentation details.
+
+---
+
+## Production Checklist
+
+Use the go-live checklist: [docs/production-checklist.md](docs/production-checklist.md).
 
 ---
 
