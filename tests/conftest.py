@@ -1,5 +1,6 @@
 import os
 from collections.abc import Generator
+from pathlib import Path
 
 import pytest
 from starlette.testclient import TestClient
@@ -8,11 +9,12 @@ from __PROJECT_SLUG__.api.v1.features.items import service as items_service
 from __PROJECT_SLUG__.core.config import get_settings
 from __PROJECT_SLUG__.main import create_app
 
-TEST_DATABASE_URL = "sqlite+aiosqlite:///./test.db"
-
-
 @pytest.fixture(scope="session", autouse=True)
-def configure_test_environment() -> Generator[None, None, None]:
+def configure_test_environment(tmp_path_factory: pytest.TempPathFactory) -> Generator[None, None, None]:
+    db_dir = tmp_path_factory.mktemp("db")
+    db_path = db_dir / "test.db"
+    test_database_url = f"sqlite+aiosqlite:///{db_path}"
+
     previous = {
         "APP_ENVIRONMENT": os.environ.get("APP_ENVIRONMENT"),
         "APP_DATABASE_URL": os.environ.get("APP_DATABASE_URL"),
@@ -21,7 +23,7 @@ def configure_test_environment() -> Generator[None, None, None]:
     }
 
     os.environ["APP_ENVIRONMENT"] = "test"
-    os.environ["APP_DATABASE_URL"] = TEST_DATABASE_URL
+    os.environ["APP_DATABASE_URL"] = test_database_url
     os.environ["APP_DATABASE_AUTO_CREATE_SCHEMA"] = "true"
     os.environ["APP_DATABASE_CONNECT_ON_STARTUP"] = "false"
     get_settings.cache_clear()
@@ -34,6 +36,7 @@ def configure_test_environment() -> Generator[None, None, None]:
         else:
             os.environ[key] = value
     get_settings.cache_clear()
+    Path(db_path).unlink(missing_ok=True)
 
 
 @pytest.fixture(autouse=True)

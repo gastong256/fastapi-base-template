@@ -161,6 +161,7 @@ make migrate-new MSG="create invoices table"
 ```
 
 See [docs/database.md](docs/database.md) for PostgreSQL configuration, pooling settings, and migration workflow.
+Database-focused test suite: `tests/db/`.
 
 ---
 

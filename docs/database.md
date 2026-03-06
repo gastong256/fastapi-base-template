@@ -51,3 +51,17 @@ Alembic files:
 make docker-up
 APP_DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/app make migrate
 ```
+
+## Testing
+
+Database-focused tests live in `tests/db/`:
+
+```bash
+PYTHONPATH=src pytest tests/db
+```
+
+They cover:
+
+- Alembic upgrade/downgrade path
+- Repository persistence behavior
+- Concurrent write behavior for `items`

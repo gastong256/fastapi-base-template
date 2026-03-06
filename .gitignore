@@ -39,3 +39,4 @@ htmlcov/
 .pypirc
 app.db
 test.db
+ci.db
