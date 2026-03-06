@@ -1,9 +1,8 @@
 from contextvars import ContextVar
 
 import structlog.contextvars
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
-from starlette.responses import Response
+from starlette.datastructures import Headers
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 TENANT_HEADER = "X-Tenant-ID"
 DEFAULT_TENANT = "public"
@@ -21,7 +20,7 @@ def get_tenant_id() -> str:
     return _tenant_id.get()
 
 
-class TenantMiddleware(BaseHTTPMiddleware):
+class TenantMiddleware:
     """Resolve X-Tenant-ID request header and store it in contextvars.
 
     Falls back to DEFAULT_TENANT ("public") when the header is absent.
@@ -29,11 +28,19 @@ class TenantMiddleware(BaseHTTPMiddleware):
     every log record emitted during the request lifecycle.
     """
 
-    async def dispatch(self, request: Request, call_next) -> Response:
-        tenant_id = request.headers.get(TENANT_HEADER, DEFAULT_TENANT)
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        tenant_id = Headers(scope=scope).get(TENANT_HEADER, DEFAULT_TENANT)
         token = _tenant_id.set(tenant_id)
         structlog.contextvars.bind_contextvars(tenant_id=tenant_id)
         try:
-            return await call_next(request)
+            await self.app(scope, receive, send)
         finally:
+            structlog.contextvars.unbind_contextvars("tenant_id")
             _tenant_id.reset(token)

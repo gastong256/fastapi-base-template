@@ -1,5 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel
+
+from __PROJECT_SLUG__.core.readiness import run_readiness_checks
 
 
 class HealthResponse(BaseModel):
@@ -20,14 +22,17 @@ async def liveness() -> HealthResponse:
 
 
 @health_router.get("/ready", response_model=HealthResponse)
-async def readiness() -> HealthResponse:
+async def readiness(request: Request) -> HealthResponse:
     """Readiness probe — confirms the service is ready to accept traffic.
 
-    Extend this endpoint to check downstream dependencies:
-        - Database connectivity
-        - Cache availability
-        - Message broker reachability
-
-    If any dependency is unavailable, raise HTTPException(503).
+    Returns 503 if any configured readiness check fails.
     """
+    failed_checks = await run_readiness_checks(request.app)
+    if failed_checks:
+        checks = ", ".join(failed_checks)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Readiness checks failed: {checks}",
+        )
+
     return HealthResponse(status="ok")

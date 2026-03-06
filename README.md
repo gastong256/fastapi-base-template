@@ -106,6 +106,9 @@ Health probes (stable, version-independent):
 | `http://localhost:8000/health` | Liveness — process is alive |
 | `http://localhost:8000/ready` | Readiness — dependencies reachable |
 
+Readiness is extensible via `core.readiness.register_readiness_check(...)`, so new
+dependencies (database, cache, broker) can be wired without changing the endpoint contract.
+
 ---
 
 ## Development Workflow
@@ -159,8 +162,8 @@ curl -H "X-Request-ID: my-trace-id" http://localhost:8000/api/v1/ping -v
 
 | Mode | Format | Enable |
 |---|---|---|
-| Local dev | Colorized console | `DEBUG=true` in `.env` |
-| Production | JSON per line | `DEBUG=false` (default in Docker) |
+| Local dev | Colorized console | `APP_DEBUG=true` in `.env` |
+| Production | JSON per line | `APP_DEBUG=false` (default in Docker) |
 
 ### OpenTelemetry (optional)
 
@@ -168,9 +171,9 @@ curl -H "X-Request-ID: my-trace-id" http://localhost:8000/api/v1/ping -v
 poetry install --with otel    # Install OTel packages
 
 # Enable via environment variables:
-OTEL_ENABLED=true
-OTEL_ENDPOINT=http://localhost:4317
-OTEL_SERVICE_NAME=__SERVICE_NAME__
+APP_OTEL_ENABLED=true
+APP_OTEL_ENDPOINT=http://localhost:4317
+APP_OTEL_SERVICE_NAME=__SERVICE_NAME__
 ```
 
 See [docs/observability.md](docs/observability.md) for a local Jaeger quickstart and full instrumentation details.

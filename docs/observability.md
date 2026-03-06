@@ -8,7 +8,7 @@ This project uses [structlog](https://www.structlog.org/) with a unified process
 
 | Environment | Format | Command |
 |---|---|---|
-| `debug=True` (local dev) | Colorized, human-readable | `DEBUG=true make run` |
+| `debug=True` (local dev) | Colorized, human-readable | `APP_DEBUG=true make run` |
 | `debug=False` (production) | JSON, one object per line | Default in Docker |
 
 ### Automatic context fields
@@ -82,9 +82,9 @@ poetry install --with otel
 Set the following environment variables (in `.env` or as system env):
 
 ```bash
-OTEL_ENABLED=true
-OTEL_ENDPOINT=http://localhost:4317        # OTLP gRPC endpoint
-OTEL_SERVICE_NAME=__SERVICE_NAME__
+APP_OTEL_ENABLED=true
+APP_OTEL_ENDPOINT=http://localhost:4317        # OTLP gRPC endpoint
+APP_OTEL_SERVICE_NAME=__SERVICE_NAME__
 ```
 
 ### What gets instrumented
@@ -101,7 +101,7 @@ docker run -d --name jaeger \
   jaegertracing/all-in-one:latest
 
 # Then start the app with OTel enabled:
-OTEL_ENABLED=true OTEL_ENDPOINT=http://localhost:4317 make run
+APP_OTEL_ENABLED=true APP_OTEL_ENDPOINT=http://localhost:4317 make run
 
 # View traces at:
 open http://localhost:16686
@@ -109,7 +109,7 @@ open http://localhost:16686
 
 ### Disabling OTel
 
-Set `OTEL_ENABLED=false` (the default). The `core/otel.py` module uses lazy imports inside a `try/except ImportError`, so the app runs safely even if the `otel` poetry group is not installed.
+Set `APP_OTEL_ENABLED=false` (the default). The `core/otel.py` module uses lazy imports inside a `try/except ImportError`, so the app runs safely even if the `otel` poetry group is not installed.
 
 ---
 

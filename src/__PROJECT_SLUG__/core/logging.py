@@ -5,7 +5,7 @@ import logging
 import structlog
 
 
-def configure_logging(*, debug: bool = False) -> None:
+def configure_logging(*, debug: bool = False, level: str = "INFO") -> None:
     """Configure structlog and stdlib logging with a unified processor chain.
 
     When debug=True, emits human-readable colorized output.
@@ -45,4 +45,4 @@ def configure_logging(*, debug: bool = False) -> None:
 
     root = logging.getLogger()
     root.handlers = [handler]
-    root.setLevel(logging.DEBUG if debug else logging.INFO)
+    root.setLevel(logging.DEBUG if debug else getattr(logging, level.upper(), logging.INFO))

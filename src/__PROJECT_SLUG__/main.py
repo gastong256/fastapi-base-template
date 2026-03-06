@@ -1,6 +1,8 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from starlette.middleware.cors import CORSMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from __PROJECT_SLUG__.api.v1.router import v1_router
 from __PROJECT_SLUG__.core.config import get_settings
@@ -8,20 +10,29 @@ from __PROJECT_SLUG__.core.errors import register_exception_handlers
 from __PROJECT_SLUG__.core.logging import configure_logging
 from __PROJECT_SLUG__.core.middleware.request_id import RequestIDMiddleware
 from __PROJECT_SLUG__.core.middleware.tenant import TenantMiddleware
+from __PROJECT_SLUG__.core.readiness import (
+    STARTUP_COMPLETE_STATE_KEY,
+    configure_readiness,
+)
 from __PROJECT_SLUG__.health.router import health_router
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
-    configure_logging(debug=settings.debug)
+    configure_logging(debug=settings.debug, level=settings.log_level)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        setattr(app.state, STARTUP_COMPLETE_STATE_KEY, False)
         if settings.otel_enabled:
             from __PROJECT_SLUG__.core.otel import setup_otel
 
             setup_otel(app, settings.otel_service_name, settings.otel_endpoint)
-        yield
+        setattr(app.state, STARTUP_COMPLETE_STATE_KEY, True)
+        try:
+            yield
+        finally:
+            setattr(app.state, STARTUP_COMPLETE_STATE_KEY, False)
 
     app = FastAPI(
         title=settings.app_name,
@@ -35,11 +46,29 @@ def create_app() -> FastAPI:
 
     register_exception_handlers(app)
 
-    # Starlette middleware is a LIFO stack.
-    # RequestIDMiddleware is added first so it executes first on every request,
-    # ensuring request_id is bound to structlog context before TenantMiddleware runs.
-    app.add_middleware(RequestIDMiddleware)
+    configure_readiness(app)
+
+    if settings.cors_origins:
+        allow_origins = [
+            f"{origin.scheme}://{origin.host}{f':{origin.port}' if origin.port else ''}"
+            for origin in settings.cors_origins
+        ]
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=allow_origins,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+
+    if settings.allowed_hosts and settings.allowed_hosts != ["*"]:
+        app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
+
+    # Starlette executes middleware in reverse registration order (last added first).
+    # Add TenantMiddleware before RequestIDMiddleware so request_id is always bound
+    # before tenant context is attached to logs.
     app.add_middleware(TenantMiddleware)
+    app.add_middleware(RequestIDMiddleware)
 
     app.include_router(health_router)  # /health  /ready  (root, no versioning)
     app.include_router(v1_router, prefix="/api/v1")  # /api/v1/...
