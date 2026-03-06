@@ -22,6 +22,12 @@ class DatabaseManager:
     def configure(self, settings: Settings) -> None:
         if self._engine is not None and self._configured_url == settings.database_url:
             return
+        if self._engine is not None and self._configured_url != settings.database_url:
+            # Reconfigure within the same process (common in tests/fixtures): dispose previous pool first.
+            self._engine.sync_engine.dispose()
+            self._engine = None
+            self._session_factory = None
+            self._configured_url = None
 
         engine_kwargs = {
             "echo": settings.database_echo,

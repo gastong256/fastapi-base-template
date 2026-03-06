@@ -190,6 +190,8 @@ APP_REQUEST_BODY_MAX_BYTES=1048576
 Docker image entrypoint uses `scripts/run-production.sh` and applies these settings automatically.
 See [docs/deployment.md](docs/deployment.md) for deployment-oriented defaults.
 For go-live validation, use [docs/production-checklist.md](docs/production-checklist.md).
+In production (`APP_ENVIRONMENT=prod`), set `APP_DATABASE_URL` to a PostgreSQL async DSN
+(`postgresql+asyncpg://...`).
 
 ---
 

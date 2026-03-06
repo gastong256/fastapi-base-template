@@ -40,7 +40,7 @@ async def parse_password_grant_request(request: Request) -> PasswordGrantRequest
             for key, values in parse_qs(body, keep_blank_values=True).items()
         }
         return PasswordGrantRequest.model_validate(parsed)
-    except (ValidationError, JSONDecodeError) as exc:
+    except (ValidationError, JSONDecodeError, UnicodeDecodeError) as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Invalid token request payload.",
@@ -215,9 +215,4 @@ async def revoke_refresh_token(
             detail="Database session is required for token revocation.",
         )
 
-    revoked = await service.revoke_refresh_token(session=db_session, refresh_token=payload.refresh_token)
-    if not revoked:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Refresh token not found or already invalid.",
-        )
+    await service.revoke_refresh_token(session=db_session, refresh_token=payload.refresh_token)

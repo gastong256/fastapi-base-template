@@ -22,6 +22,9 @@ APP_DATABASE_CONNECT_ON_STARTUP=true
 APP_DATABASE_AUTO_CREATE_SCHEMA=false
 ```
 
+In production (`APP_ENVIRONMENT=prod`), this template requires a PostgreSQL async URL
+(`postgresql+asyncpg://...`).
+
 For quick local setup without PostgreSQL:
 
 ```bash

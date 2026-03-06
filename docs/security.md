@@ -47,6 +47,8 @@ curl -X POST http://localhost:8000/api/v1/auth/revoke \
   -d '{"refresh_token":"<refresh-token>"}'
 ```
 
+`/auth/revoke` is idempotent and returns `204` even when the token is already invalid.
+
 Use returned bearer token:
 
 ```bash

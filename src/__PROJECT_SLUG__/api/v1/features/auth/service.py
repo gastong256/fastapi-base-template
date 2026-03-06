@@ -20,6 +20,7 @@ except ImportError:  # pragma: no cover - depends on installed runtime deps
     InvalidHashError = ValueError  # type: ignore[assignment,misc]
     VerifyMismatchError = ValueError  # type: ignore[assignment,misc]
     _ARGON2_AVAILABLE = False
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from __PROJECT_SLUG__.api.v1.features.auth.models import User
@@ -142,17 +143,20 @@ async def ensure_admin_user(
     scopes: list[str],
 ) -> bool:
     repo = AuthRepository(session)
-    existing = await repo.get_user_by_username(username)
-    if existing is not None:
+    try:
+        await repo.create_user(
+            username=username,
+            password_hash=hash_password(password),
+            scopes_csv=scopes_to_csv(scopes),
+            is_active=True,
+        )
+        return True
+    except IntegrityError:
+        await session.rollback()
+        existing = await repo.get_user_by_username(username)
+        if existing is None:
+            raise
         return False
-
-    await repo.create_user(
-        username=username,
-        password_hash=hash_password(password),
-        scopes_csv=scopes_to_csv(scopes),
-        is_active=True,
-    )
-    return True
 
 
 async def seed_admin_user_if_enabled(
@@ -180,6 +184,7 @@ async def issue_refresh_token(
     session: AsyncSession,
     user_id: UUID,
     expires_minutes: int,
+    commit: bool = True,
 ) -> tuple[str, int]:
     repo = AuthRepository(session)
     raw_token = secrets.token_urlsafe(48)
@@ -190,6 +195,7 @@ async def issue_refresh_token(
         user_id=user_id,
         token_hash=hash_refresh_token(raw_token),
         expires_at=expires_at,
+        commit=commit,
     )
 
     return raw_token, int(expires_delta.total_seconds())
@@ -203,27 +209,32 @@ async def rotate_refresh_token(
 ) -> tuple[AuthenticatedUser, str, int] | None:
     repo = AuthRepository(session)
     token_hash = hash_refresh_token(refresh_token)
-    stored = await repo.get_valid_refresh_token(token_hash)
-    if stored is None:
+    user_id = await repo.consume_refresh_token(token_hash, commit=False)
+    if user_id is None:
         return None
 
-    user = await repo.get_user_by_id(stored.user_id)
-    if user is None or not user.is_active:
-        return None
+    try:
+        user = await repo.get_user_by_id(user_id)
+        if user is None or not user.is_active:
+            await session.commit()
+            return None
 
-    await repo.revoke_refresh_token(token_hash)
-
-    new_refresh_token, refresh_expires_in = await issue_refresh_token(
-        session=session,
-        user_id=user.id,
-        expires_minutes=expires_minutes,
-    )
-    principal = AuthenticatedUser(
-        user_id=user.id,
-        username=user.username,
-        scopes=scopes_from_csv(user.scopes_csv),
-    )
-    return principal, new_refresh_token, refresh_expires_in
+        new_refresh_token, refresh_expires_in = await issue_refresh_token(
+            session=session,
+            user_id=user.id,
+            expires_minutes=expires_minutes,
+            commit=False,
+        )
+        await session.commit()
+        principal = AuthenticatedUser(
+            user_id=user.id,
+            username=user.username,
+            scopes=scopes_from_csv(user.scopes_csv),
+        )
+        return principal, new_refresh_token, refresh_expires_in
+    except Exception:
+        await session.rollback()
+        raise
 
 
 async def revoke_refresh_token(*, session: AsyncSession, refresh_token: str) -> bool:

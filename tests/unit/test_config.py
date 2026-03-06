@@ -14,6 +14,21 @@ def test_settings_reject_auto_create_schema_in_prod() -> None:
         Settings(environment=Environment.PROD, database_auto_create_schema=True)
 
 
+def test_settings_require_postgres_database_url_in_prod() -> None:
+    with pytest.raises(ValidationError):
+        Settings(
+            environment=Environment.PROD,
+            database_url="sqlite+aiosqlite:///./app.db",
+            auth_enabled=True,
+            auth_use_database=True,
+            auth_jwt_secret="x" * 40,
+            auth_admin_password="secure-password",
+            database_auto_create_schema=False,
+            allowed_hosts=["api.example.com"],
+            api_docs_enabled=False,
+        )
+
+
 def test_settings_require_auth_in_prod() -> None:
     with pytest.raises(ValidationError):
         Settings(

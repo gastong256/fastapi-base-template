@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from __PROJECT_SLUG__.api.v1.features.auth.models import RefreshToken, User
@@ -28,6 +28,7 @@ class AuthRepository:
         password_hash: str,
         scopes_csv: str,
         is_active: bool,
+        commit: bool = True,
     ) -> User:
         user = User(
             username=username,
@@ -36,8 +37,10 @@ class AuthRepository:
             is_active=is_active,
         )
         self.session.add(user)
-        await self.session.commit()
-        await self.session.refresh(user)
+        await self.session.flush()
+        if commit:
+            await self.session.commit()
+            await self.session.refresh(user)
         return user
 
     async def create_refresh_token(
@@ -46,6 +49,7 @@ class AuthRepository:
         user_id: UUID,
         token_hash: str,
         expires_at: datetime,
+        commit: bool = True,
     ) -> RefreshToken:
         refresh = RefreshToken(
             user_id=user_id,
@@ -53,8 +57,10 @@ class AuthRepository:
             expires_at=expires_at,
         )
         self.session.add(refresh)
-        await self.session.commit()
-        await self.session.refresh(refresh)
+        await self.session.flush()
+        if commit:
+            await self.session.commit()
+            await self.session.refresh(refresh)
         return refresh
 
     async def get_valid_refresh_token(self, token_hash: str) -> RefreshToken | None:
@@ -68,10 +74,35 @@ class AuthRepository:
         )
         return result.scalar_one_or_none()
 
-    async def revoke_refresh_token(self, token_hash: str) -> bool:
-        token = await self.get_valid_refresh_token(token_hash)
-        if token is None:
-            return False
-        token.revoked_at = datetime.now(UTC)
-        await self.session.commit()
-        return True
+    async def consume_refresh_token(self, token_hash: str, *, commit: bool = True) -> UUID | None:
+        now = datetime.now(UTC)
+        statement = (
+            update(RefreshToken)
+            .where(
+                RefreshToken.token_hash == token_hash,
+                RefreshToken.revoked_at.is_(None),
+                RefreshToken.expires_at > now,
+            )
+            .values(revoked_at=now)
+            .returning(RefreshToken.user_id)
+        )
+        result = await self.session.execute(statement)
+        user_id = result.scalar_one_or_none()
+        if user_id is not None and commit:
+            await self.session.commit()
+        return user_id
+
+    async def revoke_refresh_token(self, token_hash: str, *, commit: bool = True) -> bool:
+        statement = (
+            update(RefreshToken)
+            .where(
+                RefreshToken.token_hash == token_hash,
+                RefreshToken.revoked_at.is_(None),
+            )
+            .values(revoked_at=datetime.now(UTC))
+        )
+        result = await self.session.execute(statement)
+        changed = bool(result.rowcount and result.rowcount > 0)
+        if changed and commit:
+            await self.session.commit()
+        return changed

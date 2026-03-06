@@ -149,6 +149,8 @@ class Settings(BaseSettings):
             raise ValueError("debug must be false when environment=prod")
         if self.environment == Environment.PROD and self.database_auto_create_schema:
             raise ValueError("database_auto_create_schema must be false when environment=prod")
+        if self.environment == Environment.PROD and not self.database_url.startswith("postgresql+asyncpg://"):
+            raise ValueError("database_url must use postgresql+asyncpg:// when environment=prod")
         if self.environment == Environment.PROD and self.allowed_hosts == ["*"]:
             raise ValueError("allowed_hosts cannot be '*' when environment=prod")
         if self.environment == Environment.PROD and not self.auth_enabled:
