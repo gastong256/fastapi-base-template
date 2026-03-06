@@ -11,11 +11,12 @@ See docs/observability.md for a local Jaeger quickstart.
 from __future__ import annotations
 
 import structlog
+from fastapi import FastAPI
 
 log = structlog.get_logger()
 
 
-def setup_otel(service_name: str, endpoint: str) -> None:
+def setup_otel(app: FastAPI, service_name: str, endpoint: str) -> None:
     """Initialise OpenTelemetry tracing with an OTLP gRPC exporter.
 
     All imports are lazy so this module can be safely imported even when the
@@ -44,7 +45,7 @@ def setup_otel(service_name: str, endpoint: str) -> None:
     )
     provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint)))
     trace.set_tracer_provider(provider)
-    FastAPIInstrumentor().instrument()
+    FastAPIInstrumentor.instrument_app(app)
 
     try:
         from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor  # type: ignore[import]

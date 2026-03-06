@@ -4,7 +4,7 @@ services:
       context: .
       target: builder  # Uses the builder stage so source is editable via volume mount
     command: >
-      uvicorn __PROJECT_SLUG__.main:app
+      /build/.venv/bin/uvicorn __PROJECT_SLUG__.main:app
       --host 0.0.0.0
       --port 8000
       --reload
@@ -15,6 +15,7 @@ services:
     env_file:
       - .env
     environment:
+      PATH: /build/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       PYTHONPATH: /build/src
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]

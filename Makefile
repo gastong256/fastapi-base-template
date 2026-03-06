@@ -3,7 +3,7 @@
 SLUG ?= __PROJECT_SLUG__
 IMAGE ?= __SERVICE_NAME__
 
-.PHONY: help init install format lint typecheck test run docker-build docker-up docker-down
+.PHONY: help init install lock format lint typecheck test run docker-build docker-up docker-down
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) \
@@ -14,6 +14,10 @@ init: ## Initialize template (set PROJECT_NAME, PROJECT_SLUG, SERVICE_NAME, OWNE
 
 install: ## Install all dependencies (including dev group)
 	poetry install --with dev
+	poetry run pre-commit install
+
+lock: ## Create/update poetry.lock from pyproject.toml constraints
+	poetry lock
 
 format: ## Format code with black + ruff --fix
 	poetry run black src/ tests/

@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 
 import structlog
+import structlog.contextvars
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -11,6 +12,14 @@ log = structlog.get_logger()
 
 
 def _request_id(request: Request) -> str:
+    state_request_id = getattr(request.state, "request_id", None)
+    if state_request_id:
+        return state_request_id
+
+    context_request_id = structlog.contextvars.get_contextvars().get("request_id")
+    if context_request_id:
+        return str(context_request_id)
+
     return request.headers.get("X-Request-ID", str(uuid.uuid4()))
 
 
@@ -42,6 +51,7 @@ def register_exception_handlers(app: FastAPI) -> None:
         return JSONResponse(
             status_code=exc.status_code,
             content=_envelope(f"HTTP_{exc.status_code}", str(exc.detail), rid),
+            headers=exc.headers,
         )
 
     @app.exception_handler(Exception)

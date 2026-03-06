@@ -18,6 +18,10 @@ from __PROJECT_SLUG__.api.v1.features.items.schemas import ItemCreate, ItemRespo
 _store: dict[UUID, ItemResponse] = {}
 
 
+def clear_store() -> None:
+    _store.clear()
+
+
 def create_item(payload: ItemCreate, tenant_id: str) -> ItemResponse:
     item = ItemResponse(
         id=uuid.uuid4(),

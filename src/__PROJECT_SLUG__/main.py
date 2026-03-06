@@ -20,7 +20,7 @@ def create_app() -> FastAPI:
         if settings.otel_enabled:
             from __PROJECT_SLUG__.core.otel import setup_otel
 
-            setup_otel(settings.otel_service_name, settings.otel_endpoint)
+            setup_otel(app, settings.otel_service_name, settings.otel_endpoint)
         yield
 
     app = FastAPI(

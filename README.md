@@ -65,6 +65,7 @@ Production-ready FastAPI template. Batteries included: structured logging, reque
 ```bash
 # Prerequisites: Python 3.12+, Poetry
 
+make lock             # Generate/update poetry.lock for deterministic installs
 make install          # Install all dependencies
 cp .env.example .env  # Configure environment variables (edit as needed)
 make run              # Start with hot-reload at http://localhost:8000
@@ -116,6 +117,7 @@ make format      # Format with black + ruff --fix
 make lint        # Lint with ruff (no auto-fix)
 make typecheck   # Static type check with pyright
 make test        # Run pytest with coverage report
+make lock        # Refresh dependency lockfile
 ```
 
 ### Pre-commit hooks
