@@ -5,10 +5,22 @@ on:
     branches: [main]
   push:
     branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.12"
+  POETRY_VERSION: "1.8.5"
 
 jobs:
   quality:
-    name: Init + Lint / Typecheck / Test
+    name: Quality (Lint / Typecheck / Tests)
     runs-on: ubuntu-latest
 
     steps:
@@ -16,13 +28,11 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install Poetry
-        run: pip install "poetry==1.8.*"
+        run: pip install "poetry==${POETRY_VERSION}"
 
-      # Initialize the template with dummy values so all placeholders are replaced
-      # before any Python tooling runs. This also validates that init.sh itself works.
       - name: Initialize template
         run: |
           PROJECT_NAME="Template API" \
@@ -46,6 +56,9 @@ jobs:
       - name: Install dependencies
         run: poetry install --with dev
 
+      - name: Validate Poetry metadata and lock
+        run: poetry check --lock
+
       - name: Format check (black)
         run: poetry run black --check src/ tests/
 
@@ -58,12 +71,14 @@ jobs:
       - name: Apply migrations (sqlite)
         run: poetry run alembic upgrade head
 
-      - name: Test
-        run: poetry run pytest --cov=src --cov-report=xml
+      - name: Unit + Integration tests
+        run: poetry run pytest tests/unit tests/integration --cov=src --cov-report=xml
         env:
           APP_ENVIRONMENT: test
           APP_DEBUG: "false"
           APP_DATABASE_URL: sqlite+aiosqlite:///./ci.db
+          APP_DATABASE_AUTO_CREATE_SCHEMA: "true"
+          APP_DATABASE_CONNECT_ON_STARTUP: "false"
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
@@ -72,16 +87,83 @@ jobs:
           files: coverage.xml
           fail_ci_if_error: false
 
-  docker:
-    name: Docker Build
+  db-postgres:
+    name: DB Tests (PostgreSQL)
     runs-on: ubuntu-latest
     needs: quality
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: app
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d app"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - uses: actions/checkout@v4
 
-      # Docker build also requires placeholders replaced (CMD in Dockerfile references
-      # the package name). Use the same dummy values as the quality job.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Poetry
+        run: pip install "poetry==${POETRY_VERSION}"
+
+      - name: Initialize template
+        run: |
+          PROJECT_NAME="Template API" \
+          PROJECT_SLUG="template_api" \
+          SERVICE_NAME="template-api" \
+          OWNER="template-owner" \
+          DESCRIPTION="FastAPI base template" \
+          make init
+
+      - name: Configure Poetry
+        run: poetry config virtualenvs.in-project true
+
+      - name: Cache virtualenv
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ hashFiles('poetry.lock', 'pyproject.toml') }}
+          restore-keys: |
+            venv-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: poetry install --with dev
+
+      - name: Apply migrations (postgres)
+        run: poetry run alembic upgrade head
+        env:
+          APP_ENVIRONMENT: test
+          APP_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/app
+          APP_DATABASE_AUTO_CREATE_SCHEMA: "false"
+
+      - name: Database repository tests
+        run: poetry run pytest tests/db/test_items_repository.py tests/db/test_items_concurrency.py -q
+        env:
+          APP_ENVIRONMENT: test
+          APP_DEBUG: "false"
+          APP_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/app
+          APP_DATABASE_AUTO_CREATE_SCHEMA: "false"
+          APP_DATABASE_CONNECT_ON_STARTUP: "false"
+
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: [quality, db-postgres]
+
+    steps:
+      - uses: actions/checkout@v4
+
       - name: Initialize template
         run: |
           PROJECT_NAME="Template API" \
@@ -93,10 +175,11 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
-      - name: Build image
+      - name: Build runtime image
         uses: docker/build-push-action@v5
         with:
           context: .
+          target: runtime
           push: false
           tags: template-api:ci
           cache-from: type=gha

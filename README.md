@@ -17,6 +17,7 @@ Production-ready FastAPI template. Batteries included: structured logging, reque
 - [Production Runtime](#production-runtime)
 - [Database](#database)
 - [Security](#security)
+- [CI/CD](#cicd)
 - [Observability](#observability)
 - [Multi-Tenancy](#multi-tenancy)
 - [Repository Structure](#repository-structure)
@@ -189,6 +190,7 @@ make migrate-new MSG="create invoices table"
 
 See [docs/database.md](docs/database.md) for PostgreSQL configuration, pooling settings, and migration workflow.
 Database-focused test suite: `tests/db/`.
+CI/CD details: [docs/ci-cd.md](docs/ci-cd.md).
 
 ---
 
@@ -207,6 +209,28 @@ Security baseline included in the template:
 - Optional `X-Forwarded-For` trust for deployments behind L7 proxies (`APP_TRUST_X_FORWARDED_FOR`)
 
 See [docs/security.md](docs/security.md) for settings and usage examples.
+
+---
+
+## CI/CD
+
+GitHub Actions workflows included:
+
+- `ci.yml`
+  - quality gates: `poetry check --lock`, `black --check`, `ruff`, `pyright`
+  - unit + integration tests on SQLite
+  - database repository/concurrency tests against real PostgreSQL service
+  - Docker runtime image build verification
+- `security.yml`
+  - dependency vulnerability audit (`pip-audit`)
+  - static security scan (`bandit`)
+- `release.yml`
+  - builds and pushes Docker image to GHCR on tag push
+  - creates GitHub Release notes automatically
+
+Automated dependency maintenance:
+
+- `.github/dependabot.yml` for pip, GitHub Actions, and Docker updates.
 
 ---
 

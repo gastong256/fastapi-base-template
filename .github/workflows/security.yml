@@ -1,0 +1,88 @@
+name: Security
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-audit:
+    name: Dependency Audit (pip-audit)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: pip install "poetry==1.8.5"
+
+      - name: Initialize template
+        run: |
+          PROJECT_NAME="Template API" \
+          PROJECT_SLUG="template_api" \
+          SERVICE_NAME="template-api" \
+          OWNER="template-owner" \
+          DESCRIPTION="FastAPI base template" \
+          make init
+
+      - name: Configure Poetry
+        run: poetry config virtualenvs.in-project true
+
+      - name: Install dependencies
+        run: poetry install --with dev
+
+      - name: Install pip-audit in project venv
+        run: poetry run python -m pip install pip-audit
+
+      - name: Run dependency audit
+        run: poetry run pip-audit --progress-spinner off
+
+  bandit:
+    name: Static Security Scan (bandit)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: pip install "poetry==1.8.5"
+
+      - name: Initialize template
+        run: |
+          PROJECT_NAME="Template API" \
+          PROJECT_SLUG="template_api" \
+          SERVICE_NAME="template-api" \
+          OWNER="template-owner" \
+          DESCRIPTION="FastAPI base template" \
+          make init
+
+      - name: Configure Poetry
+        run: poetry config virtualenvs.in-project true
+
+      - name: Install dependencies
+        run: poetry install --with dev
+
+      - name: Install bandit in project venv
+        run: poetry run python -m pip install bandit
+
+      - name: Run bandit
+        run: poetry run bandit -q -r src -s B105
