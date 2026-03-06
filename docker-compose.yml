@@ -17,11 +17,31 @@ services:
     environment:
       PATH: /build/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       PYTHONPATH: /build/src
+      APP_DATABASE_URL: ${APP_DATABASE_URL:-postgresql+asyncpg://postgres:postgres@postgres:5432/app}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
       timeout: 5s
       retries: 3
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d app"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   # Redis is provided as an optional dependency. Start it with:
   #   docker compose --profile with-redis up
@@ -31,3 +51,6 @@ services:
       - "6379:6379"
     profiles:
       - with-redis
+
+volumes:
+  postgres_data:

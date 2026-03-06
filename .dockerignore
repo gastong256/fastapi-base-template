@@ -26,6 +26,7 @@ docker-compose*.yml
 *.md
 docs/
 scripts/
+app.db
 
 # Editor
 .vscode/

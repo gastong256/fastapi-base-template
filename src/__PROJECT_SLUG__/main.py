@@ -6,6 +6,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from __PROJECT_SLUG__.api.v1.router import v1_router
 from __PROJECT_SLUG__.core.config import get_settings
+from __PROJECT_SLUG__.core.db import db_manager
 from __PROJECT_SLUG__.core.errors import register_exception_handlers
 from __PROJECT_SLUG__.core.logging import configure_logging
 from __PROJECT_SLUG__.core.middleware.request_id import RequestIDMiddleware
@@ -13,6 +14,7 @@ from __PROJECT_SLUG__.core.middleware.tenant import TenantMiddleware
 from __PROJECT_SLUG__.core.readiness import (
     STARTUP_COMPLETE_STATE_KEY,
     configure_readiness,
+    register_readiness_check,
 )
 from __PROJECT_SLUG__.health.router import health_router
 
@@ -20,10 +22,18 @@ from __PROJECT_SLUG__.health.router import health_router
 def create_app() -> FastAPI:
     settings = get_settings()
     configure_logging(debug=settings.debug, level=settings.log_level)
+    db_manager.configure(settings)
+
+    async def database_readiness_check(_app: FastAPI) -> None:
+        await db_manager.ping()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         setattr(app.state, STARTUP_COMPLETE_STATE_KEY, False)
+        if settings.database_auto_create_schema:
+            await db_manager.create_schema()
+        if settings.database_connect_on_startup:
+            await db_manager.ping()
         if settings.otel_enabled:
             from __PROJECT_SLUG__.core.otel import setup_otel
 
@@ -33,6 +43,7 @@ def create_app() -> FastAPI:
             yield
         finally:
             setattr(app.state, STARTUP_COMPLETE_STATE_KEY, False)
+            await db_manager.dispose()
 
     app = FastAPI(
         title=settings.app_name,
@@ -47,6 +58,7 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
 
     configure_readiness(app)
+    register_readiness_check(app, "database", database_readiness_check)
 
     if settings.cors_origins:
         allow_origins = [

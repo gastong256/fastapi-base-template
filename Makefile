@@ -3,7 +3,7 @@
 SLUG ?= __PROJECT_SLUG__
 IMAGE ?= __SERVICE_NAME__
 
-.PHONY: help init install lock format lint typecheck test run docker-build docker-up docker-down
+.PHONY: help init install lock format lint typecheck test run migrate migrate-down migrate-new docker-build docker-up docker-down
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) \
@@ -35,6 +35,19 @@ test: ## Run test suite with coverage
 
 run: ## Run development server with hot-reload
 	poetry run uvicorn $(SLUG).main:app --reload --host 0.0.0.0 --port 8000
+
+migrate: ## Apply database migrations to latest revision
+	poetry run alembic upgrade head
+
+migrate-down: ## Roll back one migration revision
+	poetry run alembic downgrade -1
+
+migrate-new: ## Create a new migration (usage: make migrate-new MSG="add users table")
+	@if [ -z "$(MSG)" ]; then \
+		echo 'MSG is required. Example: make migrate-new MSG="add users table"'; \
+		exit 1; \
+	fi
+	poetry run alembic revision --autogenerate -m "$(MSG)"
 
 docker-build: ## Build production Docker image
 	docker build -t $(IMAGE):local .

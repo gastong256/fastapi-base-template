@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/gastong256/fastapi-base-template/actions/workflows/ci.yml/badge.svg)](https://github.com/gastong256/fastapi-base-template/actions/workflows/ci.yml)
 
-Production-ready FastAPI template. Batteries included: structured logging, request tracing, multitenancy, optional OpenTelemetry, Docker, and a full test suite — all wired and working out of the box.
+Production-ready FastAPI template. Batteries included: structured logging, request tracing, multitenancy, PostgreSQL-ready persistence with Alembic migrations, optional OpenTelemetry, Docker, and a full test suite.
 
 ---
 
@@ -14,6 +14,7 @@ Production-ready FastAPI template. Batteries included: structured logging, reque
 - [Quickstart](#quickstart)
 - [API Documentation](#api-documentation)
 - [Development Workflow](#development-workflow)
+- [Database](#database)
 - [Observability](#observability)
 - [Multi-Tenancy](#multi-tenancy)
 - [Repository Structure](#repository-structure)
@@ -43,7 +44,9 @@ Production-ready FastAPI template. Batteries included: structured logging, reque
 
 4. Install dependencies and start developing:
    ```bash
+   make lock
    make install
+   make migrate
    make run
    curl http://localhost:8000/api/v1/ping
    ```
@@ -68,6 +71,7 @@ Production-ready FastAPI template. Batteries included: structured logging, reque
 make lock             # Generate/update poetry.lock for deterministic installs
 make install          # Install all dependencies
 cp .env.example .env  # Configure environment variables (edit as needed)
+make migrate          # Apply Alembic migrations
 make run              # Start with hot-reload at http://localhost:8000
 
 # Smoke tests
@@ -83,6 +87,7 @@ curl -X POST http://localhost:8000/api/v1/items \
 ```bash
 make docker-build                                        # Build production image
 make docker-up                                           # Start via docker-compose
+APP_DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/app make migrate
 docker compose --profile with-redis up --build -d       # Include Redis
 make docker-down                                         # Stop services
 ```
@@ -108,6 +113,7 @@ Health probes (stable, version-independent):
 
 Readiness is extensible via `core.readiness.register_readiness_check(...)`, so new
 dependencies (database, cache, broker) can be wired without changing the endpoint contract.
+Database migrations are managed with Alembic (`alembic.ini` + `alembic/versions/`).
 
 ---
 
@@ -121,6 +127,8 @@ make lint        # Lint with ruff (no auto-fix)
 make typecheck   # Static type check with pyright
 make test        # Run pytest with coverage report
 make lock        # Refresh dependency lockfile
+make migrate     # Apply DB migrations
+make migrate-new MSG="add users table"  # Generate migration
 ```
 
 ### Pre-commit hooks
@@ -140,6 +148,19 @@ Hooks on every commit: `trailing-whitespace`, `end-of-file-fixer`, `check-yaml`,
 2. Add `schemas.py` (Pydantic models), `service.py` (business logic), `router.py` (FastAPI routes).
 3. Register the router in `api/v1/router.py`.
 4. Add integration tests in `tests/integration/test_<feature>.py`.
+
+---
+
+## Database
+
+The template includes SQLAlchemy async persistence and Alembic migrations.
+
+```bash
+make migrate
+make migrate-new MSG="create invoices table"
+```
+
+See [docs/database.md](docs/database.md) for PostgreSQL configuration, pooling settings, and migration workflow.
 
 ---
 
@@ -211,6 +232,7 @@ src/__PROJECT_SLUG__/
 │           └── items/           # POST /api/v1/items
 ├── core/
 │   ├── config.py                # pydantic-settings (12-factor)
+│   ├── db/                      # SQLAlchemy async engine/session + metadata
 │   ├── errors.py                # Consistent JSON error envelope
 │   ├── logging.py               # structlog pipeline
 │   ├── otel.py                  # Optional OpenTelemetry setup
@@ -219,6 +241,9 @@ src/__PROJECT_SLUG__/
 │       └── tenant.py            # X-Tenant-ID → ContextVar
 └── health/
     └── router.py                # /health  /ready
+
+alembic/
+└── versions/                    # Database migration history
 ```
 
 ---

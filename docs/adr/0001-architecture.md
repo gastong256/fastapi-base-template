@@ -21,20 +21,20 @@ This document records the key architectural decisions made when designing the `_
 
 ---
 
-## Decision 2: Middleware LIFO Ordering
+## Decision 2: Pure ASGI Middleware + Ordering
 
-**Chosen:** `add_middleware(RequestIDMiddleware)` called before `add_middleware(TenantMiddleware)`.
+**Chosen:** Request/tenant context middleware implemented as pure ASGI middleware and registered in reverse order (`TenantMiddleware` first, `RequestIDMiddleware` second).
 
-**Rationale:** Starlette builds the middleware stack as a LIFO chain. The first `add_middleware` call wraps the innermost position, meaning it executes **first** on ingress and **last** on egress. `RequestIDMiddleware` must execute first so that `request_id` is bound to structlog's context vars before `TenantMiddleware` (or any route handler) emits log records.
+**Rationale:** Starlette executes middleware in reverse registration order, so this setup guarantees `RequestIDMiddleware` runs first on ingress and binds `request_id` before tenant binding or route execution. Pure ASGI middleware avoids `BaseHTTPMiddleware` limitations for streaming responses and context propagation.
 
 **Execution order per request:**
 1. `RequestIDMiddleware` enters → clears context → binds `request_id`
 2. `TenantMiddleware` enters → binds `tenant_id`
 3. Route handler executes (all logs include both `request_id` and `tenant_id`)
-4. `TenantMiddleware` exits → resets `_tenant_id` ContextVar
-5. `RequestIDMiddleware` exits → writes `X-Request-ID` to response header
+4. `TenantMiddleware` exits → resets tenant context
+5. `RequestIDMiddleware` exits → writes `X-Request-ID` header
 
-**Trade-off:** `BaseHTTPMiddleware` buffers the full response body before returning, which breaks streaming responses. For SSE or file downloads, replace with a pure ASGI middleware implementation. See [Starlette docs](https://www.starlette.io/middleware/#pure-asgi-middleware) for the upgrade path.
+**Trade-off:** Pure ASGI middleware is slightly more verbose than `BaseHTTPMiddleware`, but avoids subtle runtime edge cases.
 
 ---
 
@@ -48,23 +48,23 @@ This document records the key architectural decisions made when designing the `_
 
 ---
 
-## Decision 4: In-Memory Item Store
+## Decision 4: SQLAlchemy Async + Alembic Migrations
 
-**Chosen:** Module-level `dict[UUID, ItemResponse]` in `items/service.py`.
+**Chosen:** Built-in async persistence stack with SQLAlchemy ORM, Alembic migrations, and PostgreSQL-ready configuration.
 
-**Rationale:** Adding a database (SQLAlchemy, asyncpg, etc.) at the template level would triple the complexity and force technology choices on users. The in-memory store makes all tests fast, self-contained, and reproducible without external services. A comment block in `service.py` marks the exact insertion point for a repository layer.
+**Rationale:** A production-ready FastAPI golden path should include persistence, migration workflow, and connection pooling defaults. Shipping this stack in the template reduces bootstrap churn and aligns teams on one proven architecture.
 
-**Trade-off:** Data is lost on restart. Tests sharing a session-scoped `TestClient` can observe state from other tests (e.g. items created in `test_create_item`). Tests use unique data and assert only on their own responses, avoiding cross-test dependencies.
+**Trade-off:** Increased template complexity and dependency footprint compared to in-memory examples. To keep local onboarding friction low, SQLite remains available for zero-setup development.
 
 ---
 
-## Decision 5: Multitenancy via Request Header (No Database)
+## Decision 5: Multitenancy via Request Header + ContextVar
 
 **Chosen:** `X-Tenant-ID` header resolved in `TenantMiddleware`, stored in `ContextVar`.
 
-**Rationale:** For a stateless API with no database, tenant isolation is achieved at the application layer via request context. The `ContextVar` pattern is async-safe: each coroutine inherits the parent context at creation time, and mutations do not propagate back. `get_tenant_id()` is a plain function callable from any layer (service, background task) without FastAPI `Depends` overhead.
+**Rationale:** `ContextVar` propagation remains the simplest async-safe way to expose tenant context across handlers, services, and logs. This works with database-backed repositories and keeps the HTTP contract explicit.
 
-**Upgrade path:** When adding a database, extend `TenantMiddleware` to validate the tenant against a tenants table and raise `HTTP 403` for unknown tenants.
+**Upgrade path:** Add tenant table validation and authorization checks in middleware/service layer (for example, unknown tenant → `HTTP 403`).
 
 ---
 

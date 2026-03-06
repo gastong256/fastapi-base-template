@@ -9,6 +9,11 @@ def test_settings_reject_debug_in_prod() -> None:
         Settings(environment=Environment.PROD, debug=True)
 
 
+def test_settings_reject_auto_create_schema_in_prod() -> None:
+    with pytest.raises(ValidationError):
+        Settings(environment=Environment.PROD, database_auto_create_schema=True)
+
+
 def test_settings_parse_csv_list_fields() -> None:
     settings = Settings(
         cors_origins="https://api.example.com,https://admin.example.com",

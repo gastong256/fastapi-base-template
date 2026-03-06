@@ -11,6 +11,8 @@ RUN poetry config virtualenvs.in-project true \
     && poetry install --without dev --no-root --no-interaction --no-ansi
 
 COPY src/ ./src/
+COPY alembic.ini ./
+COPY alembic/ ./alembic/
 
 RUN poetry install --without dev --no-interaction --no-ansi
 
@@ -29,6 +31,8 @@ WORKDIR /app
 
 COPY --from=builder /build/.venv ./.venv
 COPY --from=builder /build/src ./src
+COPY --from=builder /build/alembic ./alembic
+COPY --from=builder /build/alembic.ini ./alembic.ini
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
