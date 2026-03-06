@@ -9,7 +9,12 @@ from __PROJECT_SLUG__.core.config import get_settings
 from __PROJECT_SLUG__.core.db import db_manager
 from __PROJECT_SLUG__.core.errors import register_exception_handlers
 from __PROJECT_SLUG__.core.logging import configure_logging
+from __PROJECT_SLUG__.core.middleware.rate_limit import (
+    RateLimitMiddleware,
+    build_rate_limiter,
+)
 from __PROJECT_SLUG__.core.middleware.request_id import RequestIDMiddleware
+from __PROJECT_SLUG__.core.middleware.security_headers import SecurityHeadersMiddleware
 from __PROJECT_SLUG__.core.middleware.tenant import TenantMiddleware
 from __PROJECT_SLUG__.core.readiness import (
     STARTUP_COMPLETE_STATE_KEY,
@@ -23,6 +28,17 @@ def create_app() -> FastAPI:
     settings = get_settings()
     configure_logging(debug=settings.debug, level=settings.log_level)
     db_manager.configure(settings)
+    limiter = (
+        build_rate_limiter(
+            backend=settings.rate_limit_backend,
+            max_requests=settings.rate_limit_requests,
+            window_seconds=settings.rate_limit_window_seconds,
+            redis_url=settings.rate_limit_redis_url,
+            redis_prefix=settings.rate_limit_redis_prefix,
+        )
+        if settings.rate_limit_enabled
+        else None
+    )
 
     async def database_readiness_check(_app: FastAPI) -> None:
         await db_manager.ping()
@@ -43,6 +59,8 @@ def create_app() -> FastAPI:
             yield
         finally:
             setattr(app.state, STARTUP_COMPLETE_STATE_KEY, False)
+            if limiter is not None:
+                await limiter.close()
             await db_manager.dispose()
 
     app = FastAPI(
@@ -76,9 +94,26 @@ def create_app() -> FastAPI:
     if settings.allowed_hosts and settings.allowed_hosts != ["*"]:
         app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
 
+    if settings.rate_limit_enabled:
+        app.add_middleware(
+            RateLimitMiddleware,
+            limiter=limiter,
+            exempt_paths=settings.rate_limit_exempt_paths,
+            fail_open=settings.rate_limit_fail_open,
+            trust_x_forwarded_for=settings.trust_x_forwarded_for,
+        )
+
+    if settings.security_headers_enabled:
+        app.add_middleware(
+            SecurityHeadersMiddleware,
+            csp=settings.security_csp,
+            hsts_enabled=settings.security_hsts_enabled,
+            hsts_seconds=settings.security_hsts_seconds,
+        )
+
     # Starlette executes middleware in reverse registration order (last added first).
-    # Add TenantMiddleware before RequestIDMiddleware so request_id is always bound
-    # before tenant context is attached to logs.
+    # RequestID must run first to bind request_id for every downstream middleware log.
+    # SecurityHeaders wraps all downstream responses, including early 429 rate-limit responses.
     app.add_middleware(TenantMiddleware)
     app.add_middleware(RequestIDMiddleware)
 

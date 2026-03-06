@@ -1,8 +1,9 @@
 from enum import StrEnum
 from functools import lru_cache
+from typing import Annotated
 
 from pydantic import AnyHttpUrl, Field, field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Environment(StrEnum):
@@ -31,8 +32,9 @@ class Settings(BaseSettings):
     # Server
     host: str = "0.0.0.0"
     port: int = 8000
-    cors_origins: list[AnyHttpUrl] = Field(default_factory=list)
-    allowed_hosts: list[str] = Field(default_factory=lambda: ["*"])
+    cors_origins: Annotated[list[AnyHttpUrl], NoDecode] = Field(default_factory=list)
+    allowed_hosts: Annotated[list[str], NoDecode] = Field(default_factory=lambda: ["*"])
+    trust_x_forwarded_for: bool = False
 
     # OpenTelemetry
     otel_enabled: bool = False
@@ -49,6 +51,37 @@ class Settings(BaseSettings):
     database_connect_on_startup: bool = False
     database_auto_create_schema: bool = True
 
+    # Authentication / Authorization
+    auth_enabled: bool = False
+    auth_jwt_secret: str = "change-me-please-use-a-long-random-secret"
+    auth_jwt_algorithm: str = "HS256"
+    auth_access_token_expire_minutes: int = 30
+    auth_issuer: str = "__SERVICE_NAME__"
+    auth_audience: str = "__SERVICE_NAME__-clients"
+    auth_admin_username: str = "admin"
+    auth_admin_password: str = "change-me"
+    auth_admin_scopes: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["items:read", "items:write"],
+    )
+
+    # Rate limiting
+    rate_limit_enabled: bool = True
+    rate_limit_backend: str = "memory"
+    rate_limit_requests: int = 120
+    rate_limit_window_seconds: int = 60
+    rate_limit_fail_open: bool = True
+    rate_limit_redis_url: str = "redis://localhost:6379/0"
+    rate_limit_redis_prefix: str = "__SERVICE_NAME__"
+    rate_limit_exempt_paths: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["/health", "/ready", "/api/docs", "/api/redoc", "/api/openapi.json"],
+    )
+
+    # Security headers
+    security_headers_enabled: bool = True
+    security_csp: str = "default-src 'self'; frame-ancestors 'none'; base-uri 'self'"
+    security_hsts_enabled: bool = False
+    security_hsts_seconds: int = 31536000
+
     @field_validator("log_level")
     @classmethod
     def validate_log_level(cls, value: str) -> str:
@@ -58,7 +91,13 @@ class Settings(BaseSettings):
             raise ValueError(f"log_level must be one of: {', '.join(sorted(allowed))}")
         return normalized
 
-    @field_validator("cors_origins", "allowed_hosts", mode="before")
+    @field_validator(
+        "cors_origins",
+        "allowed_hosts",
+        "auth_admin_scopes",
+        "rate_limit_exempt_paths",
+        mode="before",
+    )
     @classmethod
     def parse_csv_settings(cls, value: object) -> object:
         if isinstance(value, str):
@@ -74,6 +113,10 @@ class Settings(BaseSettings):
             raise ValueError("debug must be false when environment=prod")
         if self.environment == Environment.PROD and self.database_auto_create_schema:
             raise ValueError("database_auto_create_schema must be false when environment=prod")
+        if self.environment == Environment.PROD and self.allowed_hosts == ["*"]:
+            raise ValueError("allowed_hosts cannot be '*' when environment=prod")
+        if self.environment == Environment.PROD and not self.auth_enabled:
+            raise ValueError("auth_enabled must be true when environment=prod")
 
         if self.database_pool_size < 1:
             raise ValueError("database_pool_size must be >= 1")
@@ -83,6 +126,26 @@ class Settings(BaseSettings):
             raise ValueError("database_pool_timeout must be >= 1")
         if self.database_pool_recycle < 1:
             raise ValueError("database_pool_recycle must be >= 1")
+        if self.rate_limit_requests < 1:
+            raise ValueError("rate_limit_requests must be >= 1")
+        if self.rate_limit_window_seconds < 1:
+            raise ValueError("rate_limit_window_seconds must be >= 1")
+        if self.rate_limit_backend not in {"memory", "redis"}:
+            raise ValueError("rate_limit_backend must be one of: memory, redis")
+        if self.rate_limit_backend == "redis" and not self.rate_limit_redis_url.strip():
+            raise ValueError("rate_limit_redis_url cannot be empty when rate_limit_backend=redis")
+        if not self.rate_limit_redis_prefix.strip():
+            raise ValueError("rate_limit_redis_prefix cannot be empty")
+        if self.auth_access_token_expire_minutes < 1:
+            raise ValueError("auth_access_token_expire_minutes must be >= 1")
+        if self.auth_enabled and len(self.auth_jwt_secret) < 32:
+            raise ValueError("auth_jwt_secret must be at least 32 characters when auth_enabled=true")
+        if self.environment == Environment.PROD and self.auth_admin_password == "change-me":
+            raise ValueError("auth_admin_password must be changed in production")
+        if self.security_hsts_enabled and self.security_hsts_seconds < 1:
+            raise ValueError("security_hsts_seconds must be >= 1 when HSTS is enabled")
+        if not self.auth_admin_scopes:
+            raise ValueError("auth_admin_scopes cannot be empty")
         return self
 
 

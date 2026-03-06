@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/gastong256/fastapi-base-template/actions/workflows/ci.yml/badge.svg)](https://github.com/gastong256/fastapi-base-template/actions/workflows/ci.yml)
 
-Production-ready FastAPI template. Batteries included: structured logging, request tracing, multitenancy, PostgreSQL-ready persistence with Alembic migrations, optional OpenTelemetry, Docker, and a full test suite.
+Production-ready FastAPI template. Batteries included: structured logging, request tracing, multitenancy, PostgreSQL-ready persistence with Alembic migrations, JWT auth scaffolding, rate limiting, security headers, optional OpenTelemetry, Docker, and a full test suite.
 
 ---
 
@@ -15,6 +15,7 @@ Production-ready FastAPI template. Batteries included: structured logging, reque
 - [API Documentation](#api-documentation)
 - [Development Workflow](#development-workflow)
 - [Database](#database)
+- [Security](#security)
 - [Observability](#observability)
 - [Multi-Tenancy](#multi-tenancy)
 - [Repository Structure](#repository-structure)
@@ -111,6 +112,12 @@ Health probes (stable, version-independent):
 | `http://localhost:8000/health` | Liveness — process is alive |
 | `http://localhost:8000/ready` | Readiness — dependencies reachable |
 
+Auth endpoint:
+
+| URL | Description |
+|---|---|
+| `http://localhost:8000/api/v1/auth/token` | OAuth2 password flow token endpoint |
+
 Readiness is extensible via `core.readiness.register_readiness_check(...)`, so new
 dependencies (database, cache, broker) can be wired without changing the endpoint contract.
 Database migrations are managed with Alembic (`alembic.ini` + `alembic/versions/`).
@@ -162,6 +169,23 @@ make migrate-new MSG="create invoices table"
 
 See [docs/database.md](docs/database.md) for PostgreSQL configuration, pooling settings, and migration workflow.
 Database-focused test suite: `tests/db/`.
+
+---
+
+## Security
+
+Security baseline included in the template:
+
+- JWT auth scaffolding with OAuth2 password flow (`/api/v1/auth/token`)
+- Scope-based authorization dependency (`items:write` on item creation)
+- Rate limiting middleware with pluggable backend:
+  - in-memory sliding window (single-process)
+  - Redis fixed-window (multi-instance / HA)
+- Security headers middleware (CSP, frame, referrer, permissions, HSTS optional)
+- Trusted host middleware (configured by `APP_ALLOWED_HOSTS`)
+- Optional `X-Forwarded-For` trust for deployments behind L7 proxies (`APP_TRUST_X_FORWARDED_FOR`)
+
+See [docs/security.md](docs/security.md) for settings and usage examples.
 
 ---
 
@@ -229,6 +253,7 @@ src/__PROJECT_SLUG__/
 │   └── v1/
 │       ├── router.py            # v1 route aggregator
 │       └── features/
+│           ├── auth/            # POST /api/v1/auth/token
 │           ├── ping/            # GET /api/v1/ping
 │           └── items/           # POST /api/v1/items
 ├── core/
@@ -237,8 +262,11 @@ src/__PROJECT_SLUG__/
 │   ├── errors.py                # Consistent JSON error envelope
 │   ├── logging.py               # structlog pipeline
 │   ├── otel.py                  # Optional OpenTelemetry setup
+│   ├── security/                # JWT auth helpers + principal dependency
 │   └── middleware/
+│       ├── rate_limit.py        # Request throttling
 │       ├── request_id.py        # X-Request-ID propagation
+│       ├── security_headers.py  # HTTP response hardening headers
 │       └── tenant.py            # X-Tenant-ID → ContextVar
 └── health/
     └── router.py                # /health  /ready

@@ -7,7 +7,6 @@ from starlette.testclient import TestClient
 
 from __PROJECT_SLUG__.api.v1.features.items import service as items_service
 from __PROJECT_SLUG__.core.config import get_settings
-from __PROJECT_SLUG__.main import create_app
 
 @pytest.fixture(scope="session", autouse=True)
 def configure_test_environment(tmp_path_factory: pytest.TempPathFactory) -> Generator[None, None, None]:
@@ -49,5 +48,7 @@ def reset_item_store() -> None:
 @pytest.fixture
 def client() -> TestClient:
     """Function-scoped TestClient for deterministic test isolation."""
+    from __PROJECT_SLUG__.main import create_app
+
     with TestClient(create_app()) as c:
         yield c
