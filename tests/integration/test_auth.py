@@ -29,9 +29,10 @@ async def auth_client(monkeypatch: pytest.MonkeyPatch) -> httpx.AsyncClient:
     register_readiness_check(app, "database", _database_readiness_noop)
 
     transport = httpx.ASGITransport(app=app)
-    async with app.router.lifespan_context(app), httpx.AsyncClient(
-        transport=transport, base_url="http://testserver"
-    ) as client:
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(transport=transport, base_url="http://testserver") as client,
+    ):
         yield client
 
     get_settings.cache_clear()
@@ -57,9 +58,10 @@ async def auth_dbmode_client(monkeypatch: pytest.MonkeyPatch) -> httpx.AsyncClie
     register_readiness_check(app, "database", _database_readiness_noop)
 
     transport = httpx.ASGITransport(app=app)
-    async with app.router.lifespan_context(app), httpx.AsyncClient(
-        transport=transport, base_url="http://testserver"
-    ) as client:
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(transport=transport, base_url="http://testserver") as client,
+    ):
         yield client
 
     get_settings.cache_clear()

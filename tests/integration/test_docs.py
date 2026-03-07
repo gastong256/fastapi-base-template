@@ -19,9 +19,10 @@ async def test_docs_can_be_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
 
     app = create_app()
     transport = httpx.ASGITransport(app=app)
-    async with app.router.lifespan_context(app), httpx.AsyncClient(
-        transport=transport, base_url="http://testserver"
-    ) as test_client:
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(transport=transport, base_url="http://testserver") as test_client,
+    ):
         assert (await test_client.get("/api/docs")).status_code == 404
         assert (await test_client.get("/api/redoc")).status_code == 404
         assert (await test_client.get("/api/openapi.json")).status_code == 404
