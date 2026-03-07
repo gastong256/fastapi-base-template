@@ -57,20 +57,23 @@ class DatabaseManager:
     def session_factory(self) -> async_sessionmaker[AsyncSession]:
         if self._session_factory is None:
             self.configure(get_settings())
-        assert self._session_factory is not None
+        if self._session_factory is None:
+            raise RuntimeError("Database session factory is not configured.")
         return self._session_factory
 
     async def ping(self) -> None:
         if self._engine is None:
             self.configure(get_settings())
-        assert self._engine is not None
+        if self._engine is None:
+            raise RuntimeError("Database engine is not configured.")
         async with self._engine.connect() as connection:
             await connection.execute(text("SELECT 1"))
 
     async def create_schema(self) -> None:
         if self._engine is None:
             self.configure(get_settings())
-        assert self._engine is not None
+        if self._engine is None:
+            raise RuntimeError("Database engine is not configured.")
         from __PROJECT_SLUG__.core.db.models import Base
 
         async with self._engine.begin() as connection:

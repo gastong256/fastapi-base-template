@@ -81,5 +81,7 @@ class MetricsMiddleware:
         finally:
             duration = max(time.perf_counter() - start, 0.0)
             normalized_path = _normalize_path(scope)
-            REQUEST_COUNT.labels(method=method, path=normalized_path, status_code=str(status_code)).inc()
+            REQUEST_COUNT.labels(
+                method=method, path=normalized_path, status_code=str(status_code)
+            ).inc()
             REQUEST_DURATION.labels(method=method, path=normalized_path).observe(duration)

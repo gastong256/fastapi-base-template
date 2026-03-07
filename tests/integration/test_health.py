@@ -34,7 +34,9 @@ async def test_readiness_returns_503_when_dependency_check_fails() -> None:
 
     transport = httpx.ASGITransport(app=app)
     async with app.router.lifespan_context(app):
-        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as test_client:
+        async with httpx.AsyncClient(
+            transport=transport, base_url="http://testserver"
+        ) as test_client:
             response = await test_client.get("/ready")
 
     assert response.status_code == 503

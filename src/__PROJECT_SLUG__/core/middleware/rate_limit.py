@@ -25,14 +25,11 @@ class RateLimitDecision:
 
 
 class RateLimiter(Protocol):
-    async def check(self, key: str) -> RateLimitDecision:
-        ...
+    async def check(self, key: str) -> RateLimitDecision: ...
 
-    async def ping(self) -> None:
-        ...
+    async def ping(self) -> None: ...
 
-    async def close(self) -> None:
-        ...
+    async def close(self) -> None: ...
 
 
 class SlidingWindowRateLimiter:
@@ -45,7 +42,9 @@ class SlidingWindowRateLimiter:
         self._lock = asyncio.Lock()
 
     def _prune_stale_keys(self, cutoff: float) -> None:
-        stale_keys = [key for key, queue in self._events.items() if not queue or queue[-1] <= cutoff]
+        stale_keys = [
+            key for key, queue in self._events.items() if not queue or queue[-1] <= cutoff
+        ]
         for stale_key in stale_keys:
             self._events.pop(stale_key, None)
             self._last_seen.pop(stale_key, None)
@@ -232,7 +231,9 @@ class RateLimitMiddleware:
                 log.exception("rate_limit_backend_failed_open", path=path, client_ip=client_ip)
                 await self.app(scope, receive, send)
                 return
-            request_id = str(structlog.contextvars.get_contextvars().get("request_id", str(uuid.uuid4())))
+            request_id = str(
+                structlog.contextvars.get_contextvars().get("request_id", str(uuid.uuid4()))
+            )
             unavailable = JSONResponse(
                 status_code=503,
                 content={
@@ -250,7 +251,9 @@ class RateLimitMiddleware:
             await self.app(scope, receive, send)
             return
 
-        request_id = str(structlog.contextvars.get_contextvars().get("request_id", str(uuid.uuid4())))
+        request_id = str(
+            structlog.contextvars.get_contextvars().get("request_id", str(uuid.uuid4()))
+        )
         retry_after = decision.retry_after_seconds if decision.retry_after_seconds > 0 else 1
         limited = JSONResponse(
             status_code=429,

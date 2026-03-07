@@ -14,7 +14,9 @@ from __PROJECT_SLUG__.core.db import db_manager
 async def prepare_db() -> None:
     settings = get_settings()
     if not settings.database_url.startswith("postgresql+"):
-        pytest.skip("tests/db require APP_DATABASE_URL with a PostgreSQL async URL (postgresql+asyncpg://...)")
+        pytest.skip(
+            "tests/db require APP_DATABASE_URL with a PostgreSQL async URL (postgresql+asyncpg://...)"
+        )
 
     db_manager.configure(settings)
     await db_manager.create_schema()

@@ -49,7 +49,9 @@ class RequestBodyLimitMiddleware:
         try:
             await self.app(scope, receive_wrapper, send)
         except RequestBodyTooLarge:
-            request_id = str(structlog.contextvars.get_contextvars().get("request_id", str(uuid.uuid4())))
+            request_id = str(
+                structlog.contextvars.get_contextvars().get("request_id", str(uuid.uuid4()))
+            )
             response = JSONResponse(
                 status_code=413,
                 content={

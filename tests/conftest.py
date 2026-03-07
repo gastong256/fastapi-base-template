@@ -13,7 +13,9 @@ from __PROJECT_SLUG__.core.readiness import register_readiness_check
 
 
 @pytest.fixture(scope="session", autouse=True)
-def configure_test_environment(tmp_path_factory: pytest.TempPathFactory) -> Generator[None, None, None]:
+def configure_test_environment(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> Generator[None, None, None]:
     db_dir = tmp_path_factory.mktemp("db")
     db_path = db_dir / "test.db"
     test_database_url = f"sqlite+aiosqlite:///{db_path}"

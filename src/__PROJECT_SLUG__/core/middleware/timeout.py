@@ -37,7 +37,9 @@ class RequestTimeoutMiddleware:
                 timeout=self.timeout_seconds,
             )
         except TimeoutError:
-            request_id = str(structlog.contextvars.get_contextvars().get("request_id", str(uuid.uuid4())))
+            request_id = str(
+                structlog.contextvars.get_contextvars().get("request_id", str(uuid.uuid4()))
+            )
             response = JSONResponse(
                 status_code=504,
                 content={

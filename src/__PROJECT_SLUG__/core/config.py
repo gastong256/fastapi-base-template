@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     api_openapi_url: str = "/api/openapi.json"
 
     # Server
-    host: str = "0.0.0.0"
+    host: str = "127.0.0.1"
     port: int = 8000
     web_concurrency: int = 1
     keepalive_timeout: int = 5
@@ -55,12 +55,24 @@ class Settings(BaseSettings):
     request_timeout_enabled: bool = True
     request_timeout_seconds: int = 30
     request_timeout_exempt_paths: Annotated[list[str], NoDecode] = Field(
-        default_factory=lambda: ["/health", "/ready", "/api/docs", "/api/redoc", "/api/openapi.json"],
+        default_factory=lambda: [
+            "/health",
+            "/ready",
+            "/api/docs",
+            "/api/redoc",
+            "/api/openapi.json",
+        ],
     )
     request_body_limit_enabled: bool = True
     request_body_max_bytes: int = 1_048_576
     request_body_limit_exempt_paths: Annotated[list[str], NoDecode] = Field(
-        default_factory=lambda: ["/health", "/ready", "/api/docs", "/api/redoc", "/api/openapi.json"],
+        default_factory=lambda: [
+            "/health",
+            "/ready",
+            "/api/docs",
+            "/api/redoc",
+            "/api/openapi.json",
+        ],
     )
 
     # OpenTelemetry
@@ -106,7 +118,14 @@ class Settings(BaseSettings):
     rate_limit_redis_url: str = "redis://localhost:6379/0"
     rate_limit_redis_prefix: str = "__SERVICE_NAME__"
     rate_limit_exempt_paths: Annotated[list[str], NoDecode] = Field(
-        default_factory=lambda: ["/health", "/ready", "/metrics", "/api/docs", "/api/redoc", "/api/openapi.json"],
+        default_factory=lambda: [
+            "/health",
+            "/ready",
+            "/metrics",
+            "/api/docs",
+            "/api/redoc",
+            "/api/openapi.json",
+        ],
     )
 
     # Security headers
@@ -149,7 +168,9 @@ class Settings(BaseSettings):
             raise ValueError("debug must be false when environment=prod")
         if self.environment == Environment.PROD and self.database_auto_create_schema:
             raise ValueError("database_auto_create_schema must be false when environment=prod")
-        if self.environment == Environment.PROD and not self.database_url.startswith("postgresql+asyncpg://"):
+        if self.environment == Environment.PROD and not self.database_url.startswith(
+            "postgresql+asyncpg://"
+        ):
             raise ValueError("database_url must use postgresql+asyncpg:// when environment=prod")
         if self.environment == Environment.PROD and self.allowed_hosts == ["*"]:
             raise ValueError("allowed_hosts cannot be '*' when environment=prod")
@@ -213,7 +234,9 @@ class Settings(BaseSettings):
         if self.request_body_max_bytes < 1:
             raise ValueError("request_body_max_bytes must be >= 1")
         if self.auth_enabled and len(self.auth_jwt_secret) < 32:
-            raise ValueError("auth_jwt_secret must be at least 32 characters when auth_enabled=true")
+            raise ValueError(
+                "auth_jwt_secret must be at least 32 characters when auth_enabled=true"
+            )
         if self.environment == Environment.PROD and self.auth_admin_password == "change-me":
             raise ValueError("auth_admin_password must be changed in production")
         if self.security_hsts_enabled and self.security_hsts_seconds < 1:

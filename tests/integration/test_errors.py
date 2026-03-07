@@ -26,7 +26,9 @@ async def test_http_exception_preserves_headers_and_request_id() -> None:
 
     transport = httpx.ASGITransport(app=app)
     async with app.router.lifespan_context(app):
-        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as test_client:
+        async with httpx.AsyncClient(
+            transport=transport, base_url="http://testserver"
+        ) as test_client:
             response = await test_client.get("/_test/http-exception")
 
     assert response.status_code == 401

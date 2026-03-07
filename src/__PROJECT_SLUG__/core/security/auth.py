@@ -29,7 +29,9 @@ class AuthPrincipal(BaseModel):
 
 def authenticate_admin_user(username: str, password: str) -> bool:
     settings = get_settings()
-    return secrets.compare_digest(username, settings.auth_admin_username) and secrets.compare_digest(
+    return secrets.compare_digest(
+        username, settings.auth_admin_username
+    ) and secrets.compare_digest(
         password,
         settings.auth_admin_password,
     )
@@ -111,7 +113,9 @@ async def get_current_principal(
     username = str(payload.get("username", payload.get("sub", "")))
     token_scopes = payload.get("scopes", [])
 
-    if not isinstance(token_scopes, list) or not all(isinstance(scope, str) for scope in token_scopes):
+    if not isinstance(token_scopes, list) or not all(
+        isinstance(scope, str) for scope in token_scopes
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token scopes.",
