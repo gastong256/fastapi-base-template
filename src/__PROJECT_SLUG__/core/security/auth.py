@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 
 import jwt
-from fastapi import Depends, HTTPException, Security, status
+from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, SecurityScopes
 from pydantic import BaseModel, Field
 
@@ -141,8 +141,8 @@ async def get_current_principal(
 
 def require_scopes(scopes: list[str]):
     async def dependency(
-        principal: Annotated[AuthPrincipal, Security(get_current_principal, scopes=scopes)],
+        token: Annotated[str | None, Depends(oauth2_scheme)],
     ) -> AuthPrincipal:
-        return principal
+        return await get_current_principal(SecurityScopes(scopes=scopes), token)
 
     return dependency
