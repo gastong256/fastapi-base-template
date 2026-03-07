@@ -29,7 +29,7 @@ class DatabaseManager:
             self._session_factory = None
             self._configured_url = None
 
-        engine_kwargs = {
+        engine_kwargs: dict[str, object] = {
             "echo": settings.database_echo,
             "pool_pre_ping": True,
         }

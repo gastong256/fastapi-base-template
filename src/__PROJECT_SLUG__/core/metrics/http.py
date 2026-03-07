@@ -1,21 +1,27 @@
 from __future__ import annotations
 
 import time
+from typing import Any
 
 from fastapi import Response
 from fastapi.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+CONTENT_TYPE_LATEST = "text/plain; version=0.0.4; charset=utf-8"
+PROMETHEUS_AVAILABLE = False
+REQUEST_COUNT: Any | None = None
+REQUEST_DURATION: Any | None = None
+_generate_latest: Any | None = None
+
 try:  # pragma: no cover - availability depends on runtime environment
-    from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
-
-    PROMETHEUS_AVAILABLE = True
+    from prometheus_client import CONTENT_TYPE_LATEST as _CONTENT_TYPE_LATEST
+    from prometheus_client import Counter, Histogram, generate_latest
 except ImportError:  # pragma: no cover - handled explicitly by fallback behavior
-    CONTENT_TYPE_LATEST = "text/plain; version=0.0.4; charset=utf-8"
-    PROMETHEUS_AVAILABLE = False
-
-
-if PROMETHEUS_AVAILABLE:
+    pass
+else:
+    CONTENT_TYPE_LATEST = _CONTENT_TYPE_LATEST
+    PROMETHEUS_AVAILABLE = True
+    _generate_latest = generate_latest
     REQUEST_COUNT = Counter(
         "http_server_requests_total",
         "Total HTTP requests processed by the application.",
@@ -29,7 +35,7 @@ if PROMETHEUS_AVAILABLE:
 
 
 def metrics_endpoint() -> Response:
-    if not PROMETHEUS_AVAILABLE:
+    if not PROMETHEUS_AVAILABLE or _generate_latest is None:
         return JSONResponse(
             status_code=503,
             content={
@@ -40,7 +46,7 @@ def metrics_endpoint() -> Response:
                 }
             },
         )
-    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
+    return Response(content=_generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
 def _normalize_path(scope: Scope) -> str:
@@ -81,7 +87,8 @@ class MetricsMiddleware:
         finally:
             duration = max(time.perf_counter() - start, 0.0)
             normalized_path = _normalize_path(scope)
-            REQUEST_COUNT.labels(
-                method=method, path=normalized_path, status_code=str(status_code)
-            ).inc()
-            REQUEST_DURATION.labels(method=method, path=normalized_path).observe(duration)
+            if REQUEST_COUNT is not None and REQUEST_DURATION is not None:
+                REQUEST_COUNT.labels(
+                    method=method, path=normalized_path, status_code=str(status_code)
+                ).inc()
+                REQUEST_DURATION.labels(method=method, path=normalized_path).observe(duration)

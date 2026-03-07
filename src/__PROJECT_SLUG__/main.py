@@ -14,6 +14,7 @@ from __PROJECT_SLUG__.core.logging import configure_logging
 from __PROJECT_SLUG__.core.metrics import MetricsMiddleware, metrics_endpoint
 from __PROJECT_SLUG__.core.middleware.body_size import RequestBodyLimitMiddleware
 from __PROJECT_SLUG__.core.middleware.rate_limit import (
+    RateLimiter,
     RateLimitMiddleware,
     build_rate_limiter,
 )
@@ -41,8 +42,9 @@ def create_app() -> FastAPI:
         request_timeout_exempt_paths.add(settings.metrics_path)
         request_body_limit_exempt_paths.add(settings.metrics_path)
 
-    limiter = (
-        build_rate_limiter(
+    limiter: RateLimiter | None = None
+    if settings.rate_limit_enabled:
+        limiter = build_rate_limiter(
             backend=settings.rate_limit_backend,
             max_requests=settings.rate_limit_requests,
             window_seconds=settings.rate_limit_window_seconds,
@@ -50,9 +52,6 @@ def create_app() -> FastAPI:
             redis_url=settings.rate_limit_redis_url,
             redis_prefix=settings.rate_limit_redis_prefix,
         )
-        if settings.rate_limit_enabled
-        else None
-    )
 
     async def database_readiness_check(_app: FastAPI) -> None:
         await db_manager.ping()
@@ -137,7 +136,7 @@ def create_app() -> FastAPI:
             compresslevel=settings.gzip_compress_level,
         )
 
-    if settings.rate_limit_enabled:
+    if settings.rate_limit_enabled and limiter is not None:
         app.add_middleware(
             RateLimitMiddleware,
             limiter=limiter,

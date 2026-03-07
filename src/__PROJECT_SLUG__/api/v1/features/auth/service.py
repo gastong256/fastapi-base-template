@@ -26,7 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from __PROJECT_SLUG__.api.v1.features.auth.models import User
 from __PROJECT_SLUG__.api.v1.features.auth.repository import AuthRepository
 
-_password_hasher = PasswordHasher() if _ARGON2_AVAILABLE else None
+_password_hasher = PasswordHasher() if PasswordHasher is not None else None
 _PBKDF2_SCHEME = "pbkdf2_sha256"
 _PBKDF2_ITERATIONS = 390000
 

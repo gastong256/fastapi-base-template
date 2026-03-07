@@ -5,9 +5,9 @@ import hashlib
 import time
 import uuid
 from collections import deque
-from collections.abc import Iterable
+from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Protocol, cast
 
 import structlog
 import structlog.contextvars
@@ -32,6 +32,14 @@ class RateLimiter(Protocol):
     async def close(self) -> None: ...
 
 
+class RedisClient(Protocol):
+    async def incr(self, key: str) -> int: ...
+
+    async def expire(self, key: str, seconds: int) -> object: ...
+
+    async def ping(self) -> object: ...
+
+
 class SlidingWindowRateLimiter:
     def __init__(self, max_requests: int, window_seconds: int, max_keys: int = 50000) -> None:
         self.max_requests = max_requests
@@ -52,7 +60,7 @@ class SlidingWindowRateLimiter:
     def _evict_oldest_key(self) -> None:
         if not self._last_seen:
             return
-        oldest_key = min(self._last_seen, key=self._last_seen.get)
+        oldest_key = min(self._last_seen, key=lambda item: self._last_seen[item])
         self._events.pop(oldest_key, None)
         self._last_seen.pop(oldest_key, None)
 
@@ -100,7 +108,7 @@ class RedisFixedWindowRateLimiter:
         window_seconds: int,
         redis_url: str,
         key_prefix: str,
-        redis_client: object | None = None,
+        redis_client: RedisClient | None = None,
     ) -> None:
         self.max_requests = max_requests
         self.window_seconds = window_seconds
@@ -108,7 +116,7 @@ class RedisFixedWindowRateLimiter:
         self._redis = redis_client or self._build_client(redis_url)
 
     @staticmethod
-    def _build_client(redis_url: str) -> object:
+    def _build_client(redis_url: str) -> RedisClient:
         try:
             from redis import asyncio as redis_asyncio  # type: ignore[import-not-found]
         except ImportError as exc:
@@ -116,7 +124,10 @@ class RedisFixedWindowRateLimiter:
                 "Redis rate limiter backend requires 'redis' dependency. "
                 "Install it with: poetry add redis"
             ) from exc
-        return redis_asyncio.from_url(redis_url, encoding="utf-8", decode_responses=True)
+        return cast(
+            RedisClient,
+            redis_asyncio.from_url(redis_url, encoding="utf-8", decode_responses=True),
+        )
 
     def _window_key(self, key: str, now: float) -> str:
         bucket = int(now // self.window_seconds)
@@ -143,8 +154,8 @@ class RedisFixedWindowRateLimiter:
         return RateLimitDecision(allowed=True)
 
     async def close(self) -> None:
-        close = getattr(self._redis, "aclose", None)
-        if callable(close):
+        close = cast(Callable[[], Awaitable[object]] | None, getattr(self._redis, "aclose", None))
+        if close is not None:
             await close()
 
     async def ping(self) -> None:

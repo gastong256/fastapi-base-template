@@ -100,9 +100,10 @@ class AuthRepository:
                 RefreshToken.revoked_at.is_(None),
             )
             .values(revoked_at=datetime.now(UTC))
+            .returning(RefreshToken.id)
         )
         result = await self.session.execute(statement)
-        changed = bool(result.rowcount and result.rowcount > 0)
+        changed = result.scalar_one_or_none() is not None
         if changed and commit:
             await self.session.commit()
         return changed
