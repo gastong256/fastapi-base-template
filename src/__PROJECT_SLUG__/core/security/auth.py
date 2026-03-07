@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
 import secrets
-from typing import Annotated, Any
 import uuid
+from datetime import UTC, datetime, timedelta
+from typing import Annotated, Any
 
 import jwt
 from fastapi import Depends, HTTPException, Security, status
@@ -141,7 +141,7 @@ async def get_current_principal(
 
 def require_scopes(scopes: list[str]):
     async def dependency(
-        principal: AuthPrincipal = Security(get_current_principal, scopes=scopes),
+        principal: Annotated[AuthPrincipal, Security(get_current_principal, scopes=scopes)],
     ) -> AuthPrincipal:
         return principal
 

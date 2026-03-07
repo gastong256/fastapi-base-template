@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from json import JSONDecodeError
-from urllib.parse import parse_qs
 from typing import Annotated
+from urllib.parse import parse_qs
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import ValidationError

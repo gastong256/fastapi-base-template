@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
 import uuid
+from collections.abc import Iterable
 
 import structlog.contextvars
 from fastapi.responses import JSONResponse

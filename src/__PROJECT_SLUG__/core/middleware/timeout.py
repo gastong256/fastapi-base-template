@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Iterable
 import uuid
+from collections.abc import Iterable
 
 import structlog.contextvars
 from fastapi.responses import JSONResponse

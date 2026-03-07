@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import time
+import uuid
 from collections import deque
 from collections.abc import Iterable
 from dataclasses import dataclass
-import hashlib
-import time
 from typing import Protocol
-import uuid
 
 import structlog
 import structlog.contextvars

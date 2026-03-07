@@ -5,8 +5,8 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from __PROJECT_SLUG__.api.v1.router import v1_router
 from __PROJECT_SLUG__.api.v1.features.auth.service import seed_admin_user_if_enabled
+from __PROJECT_SLUG__.api.v1.router import v1_router
 from __PROJECT_SLUG__.core.config import get_settings
 from __PROJECT_SLUG__.core.db import db_manager
 from __PROJECT_SLUG__.core.errors import register_exception_handlers
