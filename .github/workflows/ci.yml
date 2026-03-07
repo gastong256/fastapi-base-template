@@ -208,7 +208,7 @@ jobs:
           DESCRIPTION="FastAPI base template" \
           make init
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       - name: Build runtime image
         uses: docker/build-push-action@v7
